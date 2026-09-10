@@ -15,7 +15,7 @@ import java.util.WeakHashMap;
 import io.github.libxposed.api.XposedInterface;
 import static io.github.madokatext.baiduinputmod.HookSupport.*;
 
-/** Two controller hooks. Baidu still handles the original DOWN and ordinary taps. */
+/** Scoped controller hooks. Baidu still handles the original DOWN and ordinary taps. */
 final class CandidateScrollHooks {
     private static final String CAND = "com.baidu.input.ime.cand.CandHandler";
     private static final String VIEW = "com.baidu.input.ime.cand.CandidateView";
@@ -33,7 +33,7 @@ final class CandidateScrollHooks {
             slideField, slideBounds, slideWindow, slideScroller, slideTracker, slideDrag,
             slidePhase, slideAnimating, slidePressed, slideClick, slidePreviousX,
             windowWidth, windowOffset, windowFactory, windowCells, keyState, layout, language,
-            legacyOffset, legacyCells, legacyMinimum;
+            legacyOffset, legacyCells, legacyMinimum, dispatchMoving;
     private Method mode, clearPress, releaseKeys, endSlide, moveLegacy, layoutWindow, prefetch, count, cellEnd, cellPress,
             getView, invalidate, removeCallbacks;
     private boolean failed, loggedTouch, inertiaFailed;
@@ -41,7 +41,8 @@ final class CandidateScrollHooks {
     CandidateScrollHooks(HookSupport h) { this.h = h; }
     void install() {
         h.group("nine-key top candidate touch", () -> {
-            bind(); // Resolve every dependency before installing either hook.
+            bind(); // Resolve every dependency before installing the hooks.
+            h.add(h.method(VIEW, "dispatchTouchEvent", boolean.class, MotionEvent.class), this::beforeDispatch, null);
             h.add(h.method(VIEW, "onTouchEvent", boolean.class, MotionEvent.class), this::beforeTouch, this::afterTouch);
             h.add(h.method(VIEW, "r0", void.class), cb -> {
                 Gesture g = gestures.get(cb.getThisObject());
@@ -65,6 +66,7 @@ final class CandidateScrollHooks {
         // AbsCandView.n() refreshes both the host and the candidate layout layers.
         invalidate = method(view, "n", void.class);
         removeCallbacks = method(view, "q", void.class, Runnable.class);
+        dispatchMoving = field(h.type("com.baidu.input.ime.AbsSoftView"), "m", boolean.class);
         handlerField = field(view, "F", cand); area = field(view, "r0", byte.class);
         modern = field(abs, "b0", boolean.class); legacy = field(abs, "l", boolean.class);
         manager = field(abs, "a0", managerType); legacyBounds = field(abs, "e1", Rect.class);
@@ -99,6 +101,25 @@ final class CandidateScrollHooks {
     }
     private static boolean contains(Rect rect, MotionEvent event) {
         return rect != null && rect.contains((int) event.getX(), (int) event.getY());
+    }
+    private void beforeDispatch(XposedInterface.BeforeHookCallback cb) throws Exception {
+        Object controller = cb.getThisObject();
+        Gesture g = gestures.get(controller);
+        // dispatchTouchEvent is inherited from AbsSoftView and also serves the
+        // keyboard and side list. Only a DOWN already captured by our top-bar
+        // hook may use this early-drag path; ordinary DOWN/UP still run in full.
+        if (failed || g == null || !g.captured || g.cancelled) return;
+        MotionEvent event = (MotionEvent) cb.getArgs()[0];
+        if (event.getActionMasked() != MotionEvent.ACTION_MOVE || event.getPointerCount() != 1
+                || event.getPointerId(0) != g.pointerId || (!g.dragged && !crossedSlop(g, event))) return;
+        if (!dispatchMoving.getBoolean(controller)) {
+            // Baidu's initial gate is 12 * Global.q0 pixels. Its moving gate is
+            // Global.q0 / 3, so enter that existing per-controller path early.
+            // The original dispatcher keeps its coordinate bookkeeping and
+            // resets this flag on UP/CANCEL. No shared threshold is changed.
+            dispatchMoving.setBoolean(controller, true);
+            trace("early MOVE enabled; using low dispatch threshold");
+        }
     }
     private void beforeTouch(XposedInterface.BeforeHookCallback cb) {
         Object controller = cb.getThisObject();
@@ -356,7 +377,7 @@ final class CandidateScrollHooks {
         }
         @Override public void failed(Throwable error) { failInertia(error); }
     }
-    private void trace(String message) { if (traces++ < 12) h.module.log("CandidateScroll 1.3.0: " + message); }
+    private void trace(String message) { if (traces++ < 12) h.module.log("CandidateScroll 1.3.1: " + message); }
     private void fail(Throwable error) {
         if (!failed) { failed = true; h.module.log("Candidate touch hooks disabled; app interface changed", error); }
     }

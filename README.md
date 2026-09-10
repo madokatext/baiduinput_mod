@@ -1,6 +1,6 @@
 # 百度输入法 Mod 模块
 
-**1.3.0 为顶部候选栏加入松手惯性，设置界面可调惯性强度和减速时长。** 延续全模块方法 Hook、“顶部候选栏跟手滚动”开关及 1.2.1 的控制对象适配修复。面向 Android 15（SDK 35）、LSPosed modern API 100，作用域为 `com.baidu.input`。
+**1.3.1 修复上游触摸分发吞掉小幅 MOVE 的起滑迟滞，顶部候选栏提前使用低阈值移动分支，起滑距离约缩短 36 倍（按设备参数取整）。** 保留可调惯性、跟手滚动开关和全模块方法 Hook。面向 Android 15（SDK 35）、LSPosed modern API 100，作用域为 `com.baidu.input`。
 
 所有功能都不再使用整类替换：已删除 20 个 smali 覆盖类、DEX 前置加载器、资源表覆盖器和 smali 汇编任务。模块不会改动应用 ClassLoader、`dexElements`、安装 APK 或应用签名。构建只编译模块与 API 100 设置通信源码。
 
@@ -31,7 +31,7 @@
 | 标签布局 | 隐藏 ID 2；ID 0、1 增加 16dp 宽度并取消左右间距；未选中标题宽度上限提高到 150dp；保留常用语标题空格 |
 | 颜色透明度 | 在原调色方法的调用范围内调整透明度参数，保留皮肤与日夜模式计算；修改两个剪贴板分隔线的背景透明度 |
 | 四条资源文案 | 按资源名称处理 Resources / TypedArray 的字符串读取；无需完整资源表或固定数值 ID |
-| 顶部候选栏 | 仅 Hook `CandidateView.onTouchEvent(MotionEvent)` 与 `r0()`；普通点击保留原流程，拖动和模块惯性动画调用原候选窗口布局或旧版像素移动方法 |
+| 顶部候选栏 | Hook `CandidateView.onTouchEvent(MotionEvent)`、`r0()` 及继承的 `AbsSoftView.dispatchTouchEvent(MotionEvent)`；分发 Hook 只为已捕获的顶部手势提前进入低阈值移动分支，保留原坐标更新和抬手清理；拖动和惯性调用原候选布局 |
 
 迁移依据及旧功能逐项对应见 [方法 Hook 迁移说明](docs/hook-migration.md)。候选栏手势细节见 [候选栏说明](docs/candidate-scroll.md)。
 
@@ -42,7 +42,7 @@
 - 使用系统方法的 Hook 只在指定百度方法的本次调用范围内调整参数；线程上下文在返回或异常时恢复。已知可能内联的调用点采用 API 100 的定点反优化。
 - 适配依据仍是用户提供的百度输入法 **13.3.6.52（1149）** 源材料。改用 Hook 降低了对完整类实现和资源表的耦合，**不保证未来任意版本自动兼容**：若混淆名、字段或语义改变，仍需更新对应适配。
 
-日志以 `Hook group installed:`、`Hook group unavailable; keeping app behavior:` 区分各功能安装结果；调用时发现不兼容会输出 `Hook disabled after incompatible call:`。候选栏额外输出最多十二条不含候选内容的 `CandidateScroll 1.3.0` 日志，包括触摸入口的开关/九键状态、顶部 DOWN 捕获结果、拖动释放结果和惯性启动参数。惯性适配异常单独输出 `Candidate inertia disabled; direct touch scrolling remains enabled`，不停止已安装的跟手拖动 Hook。安装日志仅表示 Hook 注册完成，不能代替设备效果验证。
+日志以 `Hook group installed:`、`Hook group unavailable; keeping app behavior:` 区分各功能安装结果；调用时发现不兼容会输出 `Hook disabled after incompatible call:`。候选栏额外输出最多十二条不含候选内容的 `CandidateScroll 1.3.1` 日志，包括触摸入口的开关/九键状态、顶部 DOWN 捕获结果、`early MOVE enabled`、拖动释放结果和惯性启动参数。惯性适配异常单独输出 `Candidate inertia disabled; direct touch scrolling remains enabled`，不停止已安装的跟手拖动 Hook。安装日志仅表示 Hook 注册完成，不能代替设备效果验证。
 
 ## GitHub Actions 构建
 
