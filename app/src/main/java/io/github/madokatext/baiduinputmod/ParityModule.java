@@ -36,13 +36,20 @@ public final class ParityModule extends XposedModule {
         if (!"com.baidu.input".equals(param.getPackageName()) || attempted) return;
         attempted = true;
         ResourceOverlay prepared = null;
+        String stage = "opening module APK";
         try (ZipFile moduleApk = new ZipFile(getApplicationInfo().sourceDir)) {
+            stage = "reading profile";
             JSONObject profile = Payload.json(moduleApk, "assets/parity/profile.json");
-            prepared = new ResourceOverlay(this, param.getApplicationInfo(),
-                    Payload.json(moduleApk, "assets/parity/resources.patch.json.gz"));
+            stage = "reading resource patch asset";
+            JSONObject patch = Payload.json(moduleApk, "assets/parity/resources.patch.json.gz");
+            stage = "preparing resource table";
+            prepared = new ResourceOverlay(this, param.getApplicationInfo(), patch);
+            stage = "preparing patch DEX";
             DexOverlay candidate = new DexOverlay(param.getClassLoader(),
                     Payload.entry(moduleApk, "assets/parity/classes.dex"), profile.getJSONArray("classes"));
+            stage = "installing resource hooks";
             installResourceHooks();
+            stage = "installing patch DEX";
             candidate.install();
             dex = candidate;
             resources = prepared;
@@ -51,7 +58,7 @@ public final class ParityModule extends XposedModule {
             for (MethodUnhooker<Method> hook : resourceHooks) hook.unhook();
             resourceHooks.clear();
             if (prepared != null) prepared.close();
-            log("Parity module disabled for " + processName + ": " + error.getMessage(), error);
+            log("Parity module disabled for " + processName + " at " + stage + ": " + error.getMessage(), error);
         }
     }
 

@@ -5,6 +5,7 @@ import android.system.Os;
 
 import org.json.JSONObject;
 
+import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
@@ -36,14 +37,28 @@ final class Payload {
     }
 
     static JSONObject json(ZipFile zip, String name) throws Exception {
-        if (!name.endsWith(".gz")) {
-            return new JSONObject(new String(entry(zip, name), StandardCharsets.UTF_8));
-        }
         ZipEntry entry = zip.getEntry(name);
-        if (entry == null) throw new IOException("Missing APK entry: " + name);
-        try (InputStream input = zip.getInputStream(entry);
-             GZIPInputStream gzip = new GZIPInputStream(input)) {
-            return new JSONObject(new String(read(gzip), StandardCharsets.UTF_8));
+        String mergedName = name.endsWith(".gz") ? name.substring(0, name.length() - 3) : name;
+        // AGP's AssetItem/MergedAssetWriter turn foo.json.gz into plain foo.json.
+        // Also accept an unchanged gzip asset from other packaging tools.
+        if (entry == null && !mergedName.equals(name)) entry = zip.getEntry(mergedName);
+        if (entry == null) {
+            throw new IOException("Missing APK JSON asset: " + name
+                    + (mergedName.equals(name) ? "" : " (also tried " + mergedName + ")")
+                    + " in " + zip.getName());
+        }
+        try (BufferedInputStream input = new BufferedInputStream(zip.getInputStream(entry))) {
+            input.mark(2);
+            int first = input.read();
+            int second = input.read();
+            input.reset();
+            // ZipFile already decompresses the ZIP entry. Only unwrap gzip if its header remains.
+            if (first == 0x1f && second == 0x8b) {
+                try (GZIPInputStream gzip = new GZIPInputStream(input)) {
+                    return new JSONObject(new String(read(gzip), StandardCharsets.UTF_8));
+                }
+            }
+            return new JSONObject(new String(read(input), StandardCharsets.UTF_8));
         }
     }
 

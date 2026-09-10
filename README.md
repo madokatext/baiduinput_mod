@@ -2,7 +2,9 @@
 
 面向 **Android 15（SDK 35）和 LSPosed modern API 100**，作用域固定为 **`com.baidu.input`**。模块依据本次提供的 `origin`、`mod` 四组 smali ZIP 和 `resources.arsc` 构建。
 
-实现覆盖这组材料中的 17 个功能类与资源表差异。**尚未进行编译验证或设备测试，不能将源码覆盖视为已验证的运行时完全一致。** 没有完整 APK、Manifest、assets 和 native 库的对照，无法判断所提供材料之外是否另有差异。
+实现覆盖这组材料中的 17 个功能类与资源表差异。补充提供的 origin APK 为 **13.3.6.52（versionCode 1149）**，包名、资源表指纹及 17 个目标类定义已通过静态读取确认。**没有运行设备测试，不能将源码覆盖视为已验证的运行时完全一致。** 尚无完整 mod APK，无法比较其余 DEX、Manifest、assets 和 native 库是否另有差异。
+
+**1.0.1 修复启动时补丁资产读取失败。** Android Gradle Plugin 会把 `resources.patch.json.gz` 解压并打包为 `resources.patch.json`；读取器现在兼容这两种路径，并根据 gzip 文件头判断是否需要解压。初版日志、根因和原始 APK 分析见 [`docs/startup-failure.md`](docs/startup-failure.md)。
 
 ## 已覆盖的差异
 
@@ -44,7 +46,7 @@ gradle --no-daemon --console=plain :app:assembleRelease
 
 产物使用 CI debug keystore 签名，可以直接安装，不要求仓库配置 secrets。该密钥由 Actions cache 保留；缓存被清除后可能产生新密钥，此时需卸载旧模块后再安装。正式长期分发可另行改为仓库 secrets 管理的固定发布密钥。
 
-工作流不包含测试任务。本次提交没有在本地执行 Gradle、smali 汇编、单元测试或设备测试，也不等待 Actions 编译结果。
+工作流不包含测试任务。本次修复没有在本地执行 Gradle、smali 汇编、单元测试或设备测试，也不等待 Actions 编译结果。
 
 ## 实现方式
 
