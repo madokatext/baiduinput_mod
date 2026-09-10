@@ -32,10 +32,11 @@ final class CandidateScrollHooks {
             legacyScroller, legacyTracker, legacyDrag, legacyCapture, previousX,
             slideField, slideBounds, slideWindow, slideScroller, slideTracker, slideDrag,
             slidePhase, slideAnimating, slidePressed, slideClick, slidePreviousX,
-            windowWidth, windowOffset, windowFactory, windowCells, keyState, layout, language;
+            windowWidth, windowOffset, windowFactory, windowCells, keyState, layout, language,
+            legacyOffset, legacyCells, legacyMinimum;
     private Method mode, clearPress, releaseKeys, endSlide, moveLegacy, layoutWindow, prefetch, count, cellEnd, cellPress,
             getView, invalidate, removeCallbacks;
-    private boolean failed, loggedTouch;
+    private boolean failed, loggedTouch, inertiaFailed;
     private int traces;
     CandidateScrollHooks(HookSupport h) { this.h = h; }
     void install() {
@@ -47,6 +48,13 @@ final class CandidateScrollHooks {
                 if (g != null && g.dragged) cb.returnAndSkip(null);
             }, null);
         });
+        // These extra members are only needed for inertia. A future change must
+        // not prevent installation of the existing direct-scroll hooks.
+        try {
+            Class<?> abs = h.type(ABS);
+            legacyOffset = field(abs, "v1", int.class); legacyCells = field(abs, "k1", Rect[].class);
+            legacyMinimum = field(abs, "T0", int.class);
+        } catch (Throwable error) { failInertia(error); }
     }
     private void bind() throws Exception {
         Class<?> cand = h.type(CAND), view = h.type(VIEW), abs = h.type(ABS), slide = h.type(SLIDE),
@@ -98,7 +106,7 @@ final class CandidateScrollHooks {
         try {
             int action = event.getActionMasked();
             if (action == MotionEvent.ACTION_DOWN) {
-                gestures.remove(controller);
+                discard(controller); // A fresh touch also interrupts an active fling.
                 if (failed) return;
                 boolean enabled = h.module.candidateScrollEnabled(), nineKey = nineKey();
                 if (!loggedTouch) {
@@ -114,15 +122,17 @@ final class CandidateScrollHooks {
                 View host = (View) getView.invoke(controller);
                 if (host == null) return;
                 stop(handler);
-                gestures.put(controller, new Gesture(handler, event, ViewConfiguration.get(host.getContext()).getScaledTouchSlop()));
+                gestures.put(controller, new Gesture(handler, event, ViewConfiguration.get(host.getContext()),
+                        h.module.candidateInertiaStrength(), h.module.candidateInertiaDuration()));
                 return;
             }
             Gesture g = gestures.get(controller);
             if (g == null || !g.captured || g.handler.get() == null) return;
             Object handler = g.handler.get();
+            g.track(event);
             boolean cancel = action == MotionEvent.ACTION_CANCEL || event.getPointerCount() != 1
                     || event.getPointerId(0) != g.pointerId;
-            if (cancel) g.cancelled = true;
+            if (cancel) { g.cancelled = true; g.recycleVelocity(); }
             if (!g.dragged && (cancel || crossedSlop(g, event))) {
                 g.dragged = true;
                 clear(handler);
@@ -145,6 +155,8 @@ final class CandidateScrollHooks {
                     clear(handler); releaseKeys.invoke(controller); endSlide.invoke(handler);
                     g.captured = false;
                     trace("drag released without selection");
+                    float velocity = g.releaseVelocity(event);
+                    if (velocity != 0) startInertia(controller, g, velocity);
                 }
                 invalidate.invoke(controller);
             } else if (action == MotionEvent.ACTION_MOVE) {
@@ -158,6 +170,7 @@ final class CandidateScrollHooks {
                 g.dragged = true; g.cancelled = true; cb.returnAndSkip(true);
                 try { clear(g.handler.get()); releaseKeys.invoke(controller); } catch (Throwable ignored) { }
             }
+            if (g != null) g.dispose();
             fail(error);
         }
     }
@@ -171,7 +184,7 @@ final class CandidateScrollHooks {
                 Object handler = g.handler.get();
                 if (!Boolean.TRUE.equals(cb.getResult()) || area.getByte(null) != 2 || handler == null) {
                     trace("DOWN left to app; area=" + area.getByte(null) + "; handled=" + cb.getResult());
-                    gestures.remove(controller); return;
+                    discard(controller); return;
                 }
                 Object slide = slide(handler);
                 g.modern = modern.getBoolean(handler) && slide != null && contains((Rect) slideBounds.get(slide), event);
@@ -179,10 +192,14 @@ final class CandidateScrollHooks {
                 if (g.captured) trace("top DOWN captured; renderer=" + (g.modern ? "modern" : "legacy"));
                 else {
                     trace("top DOWN left to app; no candidate capture");
-                    gestures.remove(controller);
+                    discard(controller);
                 }
-            } else if (event.getActionMasked() == MotionEvent.ACTION_UP && !g.dragged) gestures.remove(controller);
-        } catch (Throwable error) { gestures.remove(controller); fail(error); }
+            } else if (event.getActionMasked() == MotionEvent.ACTION_UP && !g.dragged) discard(controller);
+        } catch (Throwable error) { discard(controller); fail(error); }
+    }
+    private void discard(Object controller) {
+        Gesture previous = gestures.remove(controller);
+        if (previous != null) previous.dispose();
     }
     private static boolean crossedSlop(Gesture g, MotionEvent event) {
         // Match the previous direct-scroll feature: the first horizontal pixel
@@ -245,20 +262,147 @@ final class CandidateScrollHooks {
         else windowOffset.setInt(window, result);
         prefetch.invoke(window);
     }
-    private void trace(String message) { if (traces++ < 12) h.module.log("CandidateScroll 1.2.1: " + message); }
+    private int offset(Object handler, boolean modernPath) throws Exception {
+        if (!modernPath) return legacyOffset.getInt(null);
+        Object sliding = slide(handler);
+        return windowOffset.getInt(slideWindow.get(sliding));
+    }
+    private void startInertia(Object controller, Gesture g, float velocity) {
+        if (inertiaFailed || failed || !h.module.candidateScrollEnabled()) return;
+        try {
+            FlingTarget target = new FlingTarget(controller, g);
+            if (!target.valid()) return;
+            g.inertia = new CandidateInertia(target, velocity, g.duration);
+            g.inertia.start();
+            trace("inertia started; strength=" + g.strength + "; durationMs=" + g.duration);
+        } catch (Throwable error) { failInertia(error); }
+    }
+    private void failInertia(Throwable error) {
+        if (!inertiaFailed) {
+            inertiaFailed = true;
+            h.module.log("Candidate inertia disabled; direct touch scrolling remains enabled", error);
+        }
+    }
+    private final class FlingTarget implements CandidateInertia.Target {
+        private final WeakReference<Object> controller, window, data, anchor;
+        private final WeakReference<View> host;
+        private final Gesture gesture;
+        private final Rect bounds, firstRect;
+        private final boolean rendererFlag;
+        private final int anchorIndex, itemCount, minimum, width;
+        private int expectedOffset;
+
+        FlingTarget(Object owner, Gesture g) throws Exception {
+            controller = new WeakReference<>(owner);
+            host = new WeakReference<>((View) getView.invoke(owner));
+            gesture = g;
+            Object handler = g.handler.get();
+            rendererFlag = modern.getBoolean(handler);
+            Object sliding = g.modern ? slide(handler) : null;
+            Object visible = sliding == null ? null : slideWindow.get(sliding);
+            window = new WeakReference<>(visible);
+            bounds = new Rect((Rect) (g.modern ? slideBounds.get(sliding) : legacyBounds.get(null)));
+            expectedOffset = offset(handler, g.modern);
+            if (g.modern) {
+                SparseArray<?> cells = (SparseArray<?>) windowCells.get(visible);
+                data = new WeakReference<>(cells);
+                anchorIndex = cells.size() == 0 ? -1 : cells.keyAt(0);
+                anchor = new WeakReference<>(cells.get(anchorIndex));
+                itemCount = (Integer) count.invoke(windowFactory.get(visible));
+                width = windowWidth.getInt(visible); minimum = 0; firstRect = null;
+            } else {
+                Rect[] cells = (Rect[]) legacyCells.get(null);
+                data = new WeakReference<>(cells);
+                itemCount = cells == null ? 0 : cells.length;
+                anchorIndex = 0; anchor = new WeakReference<>(null);
+                firstRect = itemCount == 0 || cells[0] == null ? null : new Rect(cells[0]);
+                width = bounds.width(); minimum = legacyMinimum.getInt(handler);
+            }
+        }
+        @Override public boolean valid() throws Exception {
+            Object owner = controller.get(), handler = gesture.handler.get();
+            View view = host.get();
+            if (failed || inertiaFailed || owner == null || handler == null || view == null
+                    || !view.isAttachedToWindow() || !view.isShown() || !h.module.candidateScrollEnabled()
+                    || !nineKey() || gestures.get(owner) != gesture || gesture.captured || gesture.cancelled
+                    || handlerField.get(owner) != handler || getView.invoke(owner) != view
+                    || modern.getBoolean(handler) != rendererFlag || itemCount == 0 || width <= 0) return false;
+            if (gesture.modern) {
+                Object sliding = slide(handler), visible = window.get(), cells = data.get(), first = anchor.get();
+                if (sliding == null || visible == null || cells == null || first == null
+                        || slideWindow.get(sliding) != visible || windowCells.get(visible) != cells
+                        || ((SparseArray<?>) cells).get(anchorIndex) != first
+                        || (Integer) count.invoke(windowFactory.get(visible)) != itemCount
+                        || windowWidth.getInt(visible) != width
+                        || !bounds.equals(slideBounds.get(sliding))) return false;
+            } else {
+                Rect[] cells = (Rect[]) legacyCells.get(null);
+                if (cells == null || cells != data.get() || cells.length != itemCount || firstRect == null
+                        || !firstRect.equals(cells[0]) || legacyMinimum.getInt(handler) != minimum
+                        || !bounds.equals(legacyBounds.get(null))) return false;
+            }
+            // A reset or another app scroll owns the new position; do not resume
+            // an old fling on a newly populated candidate window.
+            return offset(handler, gesture.modern) == expectedOffset;
+        }
+        @Override public boolean move(int delta) throws Exception {
+            Object handler = gesture.handler.get(), owner = controller.get();
+            if (handler == null || owner == null) return false;
+            int previous = expectedOffset;
+            if (gesture.modern) moveModern(handler, delta); else moveLegacy.invoke(handler, delta);
+            expectedOffset = offset(handler, gesture.modern);
+            invalidate.invoke(owner);
+            return (long) expectedOffset - previous == delta;
+        }
+        @Override public void failed(Throwable error) { failInertia(error); }
+    }
+    private void trace(String message) { if (traces++ < 12) h.module.log("CandidateScroll 1.3.0: " + message); }
     private void fail(Throwable error) {
         if (!failed) { failed = true; h.module.log("Candidate touch hooks disabled; app interface changed", error); }
     }
     private static final class Gesture {
         final WeakReference<Object> handler;
         final float downX, downY;
-        final int slop, pointerId;
+        final int slop, pointerId, minVelocity, maxVelocity, strength, duration;
         int lastX;
+        private float trackedX;
+        private long lastHorizontalMove;
+        private VelocityTracker velocity;
+        CandidateInertia inertia;
         boolean captured, modern, dragged, cancelled;
-        Gesture(Object handler, MotionEvent event, int slop) {
+        Gesture(Object handler, MotionEvent event, ViewConfiguration config, int strength, int duration) {
             this.handler = new WeakReference<>(handler);
             downX = event.getX(); downY = event.getY(); lastX = (int) downX;
-            pointerId = event.getPointerId(0); this.slop = slop;
+            pointerId = event.getPointerId(0); slop = config.getScaledTouchSlop();
+            minVelocity = config.getScaledMinimumFlingVelocity(); maxVelocity = config.getScaledMaximumFlingVelocity();
+            this.strength = strength; this.duration = duration;
+            trackedX = downX; lastHorizontalMove = event.getEventTime();
+            // This tracker belongs to the module; clearing Baidu's pressed state
+            // must not discard the release velocity needed for inertia.
+            if (strength > 0) { velocity = VelocityTracker.obtain(); velocity.addMovement(event); }
+        }
+        void track(MotionEvent event) {
+            if (velocity == null) return;
+            velocity.addMovement(event);
+            if ((int) event.getX() != (int) trackedX) lastHorizontalMove = event.getEventTime();
+            trackedX = event.getX();
+        }
+        float releaseVelocity(MotionEvent event) {
+            try {
+                if (cancelled || !dragged || velocity == null || event.getActionMasked() != MotionEvent.ACTION_UP
+                        || event.getEventTime() - lastHorizontalMove > 120) return 0;
+                velocity.computeCurrentVelocity(1000, maxVelocity);
+                float x = velocity.getXVelocity(pointerId), y = velocity.getYVelocity(pointerId);
+                if (Math.abs(x) < minVelocity || Math.abs(x) < Math.abs(y)) return 0;
+                return x * strength / 100f;
+            } finally { recycleVelocity(); }
+        }
+        void recycleVelocity() {
+            if (velocity != null) { velocity.recycle(); velocity = null; }
+        }
+        void dispose() {
+            recycleVelocity();
+            if (inertia != null) { inertia.cancel(); inertia = null; }
         }
     }
 }

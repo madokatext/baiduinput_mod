@@ -17,7 +17,7 @@ public final class ParityModule extends XposedModule {
         HookSupport hooks = new HookSupport(this, param.getClassLoader());
         new ModHooks(hooks).install();
         new CandidateScrollHooks(hooks).install();
-        log("BaiduInputMod 1.2.1 hook registration finished; consult group results; no DEX/class/resource-table replacement");
+        log("BaiduInputMod 1.3.0 hook registration finished; consult group results; no DEX/class/resource-table replacement");
     }
     boolean candidateScrollEnabled() {
         if (preferences == null) return false;
@@ -25,6 +25,20 @@ public final class ParityModule extends XposedModule {
         catch (Throwable error) {
             if (!preferenceError) { preferenceError = true; log("Cannot read candidate setting; keeping app touch behavior", error); }
             return false;
+        }
+    }
+    int candidateInertiaStrength() {
+        return ModuleSettings.strength(inertiaSetting(ModuleSettings.INERTIA_STRENGTH, ModuleSettings.DEFAULT_STRENGTH));
+    }
+    int candidateInertiaDuration() {
+        return ModuleSettings.duration(inertiaSetting(ModuleSettings.INERTIA_DURATION, ModuleSettings.DEFAULT_DURATION));
+    }
+    private int inertiaSetting(String key, int fallback) {
+        if (preferences == null) return fallback;
+        try { return preferences.getInt(key, fallback); }
+        catch (RuntimeException error) {
+            if (!preferenceError) { preferenceError = true; log("Cannot read inertia setting; using defaults", error); }
+            return fallback;
         }
     }
 }
