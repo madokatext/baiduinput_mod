@@ -1,0 +1,270 @@
+{
+  "package": "com.baidu.input",
+  "classes": [
+    {
+      "name": "com.baidu.input.clipboard.config.ClipboardConfig",
+      "path": "com/baidu/input/clipboard/config/ClipboardConfig.smali",
+      "originSha256": "3b609974a0d1e79138bf7cc760591e73384e7d1135d474951684b0a96c7bbd14",
+      "modSha256": "a0e9f2bf73e90d9add8391445b5e9a53bbaffb40ba95158173d96215a00314f8",
+      "methods": [
+        "public final b()I",
+        "public final e(IZ)V"
+      ]
+    },
+    {
+      "name": "com.baidu.input.clipboard.datamanager.clipboard.ClipboardDataManagerImpl$safeInsert$1$1",
+      "path": "com/baidu/input/clipboard/datamanager/clipboard/ClipboardDataManagerImpl$safeInsert$1$1.smali",
+      "originSha256": "91a0679a6b3bf603fb4b6323bebc82fd0eeed3f8a3662eee22c47141f9de21e4",
+      "modSha256": "def2fa2e0e3ae3fd4695d2064f3488572b6d02448e5fd7d4746cf21cca8ce3db",
+      "methods": [
+        "public final invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;"
+      ]
+    },
+    {
+      "name": "com.baidu.input.clipboard.datamanager.clipboard.ClipboardDataManagerImpl",
+      "path": "com/baidu/input/clipboard/datamanager/clipboard/ClipboardDataManagerImpl.smali",
+      "originSha256": "1cb5ee1e5151e3a804ef9692fba52f00e1b07f6f903a001b521a0d73dacf40ec",
+      "modSha256": "51fd6e6f9e23044c068984b36f40115bd6f7576c8d73675d01d50eebd27a5c37",
+      "methods": [
+        "public static rk(Ljava/util/List;)Ljava/util/ArrayList;",
+        "public final y9()Ljava/util/List;"
+      ]
+    },
+    {
+      "name": "com.baidu.input.clipboard.manager.BDClipboardManager$startProcess$1",
+      "path": "com/baidu/input/clipboard/manager/BDClipboardManager$startProcess$1.smali",
+      "originSha256": "2bc6a6a7c5caf59e09389c65b3ac0f8743c8ef319dfff64133567d3b93a1a944",
+      "modSha256": "ebb118d8e54e4323e61dfcad49a33c0e7d1b7da75e28579d41c5f85a604e016f",
+      "methods": [
+        "public final invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;"
+      ]
+    },
+    {
+      "name": "com.baidu.input.clipboard.panel.view.ClipboardSubTabView",
+      "path": "com/baidu/input/clipboard/panel/view/ClipboardSubTabView.smali",
+      "originSha256": "8f7821141bf83afa11dabc796e8fa84a2292551fc3c4816b7d0608c02c22ff2b",
+      "modSha256": "5ee57d72b29a7c5aa280f49474ea5ecd590cb8b47d468007ed221001641f7182",
+      "methods": [
+        "public final setCount(I)V"
+      ]
+    },
+    {
+      "name": "com.baidu.input.clipboard.panel.view.EditClipboardItemActivity",
+      "path": "com/baidu/input/clipboard/panel/view/EditClipboardItemActivity.smali",
+      "originSha256": "f09e1c80c3c696da8c4d62b1b09a79e2eb04699c4622681f691e87b21c079fde",
+      "modSha256": "ba09e523d277ce8e1e089a20f602df77160c2a2921f386e444ade81bb6167485",
+      "methods": [
+        "public static a(Landroid/widget/TextView;I)V",
+        "public onCreate(Landroid/os/Bundle;)V"
+      ]
+    },
+    {
+      "name": "com.baidu.input.emotion.common.skin.SkinColor",
+      "path": "com/baidu/input/emotion/common/skin/SkinColor.smali",
+      "originSha256": "feb0f246f052db8202ac090969b547942c60d18331e9294569680302ba2d7978",
+      "modSha256": "de0deed25b0500a28e887cb65b1c9be91da3592cba770d3654a382081a8cce04",
+      "methods": [
+        "public static e()I",
+        "public static l()I"
+      ]
+    },
+    {
+      "name": "com.baidu.input.ime.editor.popupdelegate.EditControlManagerDelegate",
+      "path": "com/baidu/input/ime/editor/popupdelegate/EditControlManagerDelegate.smali",
+      "originSha256": "feebb07c119688fde7355cb6c50673c76ddaae6ad0114655e759f886ec725cf7",
+      "modSha256": "ff3d35d6ab679498512fed5589c66e367a62519c81543db2be3940703438f18d",
+      "methods": [
+        "public final t()V"
+      ]
+    },
+    {
+      "name": "com.baidu.input.ime.front.ClipboardPanelListView",
+      "path": "com/baidu/input/ime/front/ClipboardPanelListView.smali",
+      "originSha256": "733cf5ebd74278fa0ace3dc0de05bf4d6d932dc390103a5ad7d15143c9c2ad3e",
+      "modSha256": "7edd361718f52de25d7172cf527582a984e9c125c361c0288818710b46ef4965",
+      "methods": [
+        "public constructor <init>(Landroid/content/Context;I)V"
+      ]
+    },
+    {
+      "name": "com.baidu.input.inspiration_corpus.panel.presenter.InspirationPanelViewPresenterImpl$createDefaultTabs$mine$1",
+      "path": "com/baidu/input/inspiration_corpus/panel/presenter/InspirationPanelViewPresenterImpl$createDefaultTabs$mine$1.smali",
+      "originSha256": "ac77abc003f7488287a0ffc341e1b715eee1cc3961a0eea96254c7612f97e99a",
+      "modSha256": "a4783cfc9a8bba46b0a6e9f04a1ae61b74610a572cc8dc3a1b5ddbe147dcbf30",
+      "methods": [
+        "public final getTitle()Ljava/lang/String;"
+      ]
+    },
+    {
+      "name": "com.baidu.input.inspiration_corpus.panel.view.InspirationCorpusTabView$TabAdapter",
+      "path": "com/baidu/input/inspiration_corpus/panel/view/InspirationCorpusTabView$TabAdapter.smali",
+      "originSha256": "f1e6fa781c2ba3d247d8e73158fd0c5c34d0a6eeeeaa70a7f34cae0f1ce88566",
+      "modSha256": "e37acccf003b0480fbcb77f56a49c792bfe2fb3a9905fb99b1fe95ed27791178",
+      "methods": [
+        "public final onBindViewHolder(Landroidx/recyclerview/widget/RecyclerView$ViewHolder;I)V"
+      ]
+    },
+    {
+      "name": "com.baidu.input.inspiration_corpus.panel.view.InspirationCorpusTabView$itemDecoration$2$1",
+      "path": "com/baidu/input/inspiration_corpus/panel/view/InspirationCorpusTabView$itemDecoration$2$1.smali",
+      "originSha256": "68f928117bd7e675286c99b6db3055c4d278c29f937845b15f37dd67adb8741a",
+      "modSha256": "04dafa4541ce3e9d7e42db31b86ec55ad346ce71f176cf949485fb3246895e7b",
+      "methods": [
+        "public final getItemOffsets(Landroid/graphics/Rect;Landroid/view/View;Landroidx/recyclerview/widget/RecyclerView;Landroidx/recyclerview/widget/RecyclerView$State;)V"
+      ]
+    },
+    {
+      "name": "com.baidu.input.inspirationcorpus.common.palette.BottomBarPaletteImpl",
+      "path": "com/baidu/input/inspirationcorpus/common/palette/BottomBarPaletteImpl.smali",
+      "originSha256": "1082314f0315fb95ba2e1bee914b3a32e01da81bef03fe070518519b5e15f854",
+      "modSha256": "599cfb19024081691ac90b3c567aaa3b0a62398604a3df7eabeb302c65999daf",
+      "methods": [
+        "public final c()Landroid/graphics/drawable/Drawable;"
+      ]
+    },
+    {
+      "name": "com.baidu.input.inspirationcorpus.common.palette.MainTabPaletteImpl",
+      "path": "com/baidu/input/inspirationcorpus/common/palette/MainTabPaletteImpl.smali",
+      "originSha256": "b62f7b5a3841ae4cdcd0cac48fc9318796d6eb657d1b6ddff51ec5feae72579b",
+      "modSha256": "66b1136e5677cf520839266095784506cd660576d3b67351d729bb25763d566b",
+      "methods": [
+        "public final b()Landroid/graphics/drawable/Drawable;"
+      ]
+    },
+    {
+      "name": "com.baidu.input.lazycorpus.panel.lazy.EditLazyContentActivity$buildContent$8",
+      "path": "com/baidu/input/lazycorpus/panel/lazy/EditLazyContentActivity$buildContent$8.smali",
+      "originSha256": "303b6ec563f117731dc58412f289dcd966b9534a804ccc4fe9cdc9cf85be9ba3",
+      "modSha256": "e18f7221b379ffbc173238a660ac85c2ac129ded55bddb7686626836683e7777",
+      "methods": [
+        "public final onTextChanged(Ljava/lang/CharSequence;III)V"
+      ]
+    },
+    {
+      "name": "com.baidu.input.lazycorpus.panel.lazy.EditLazyContentActivity",
+      "path": "com/baidu/input/lazycorpus/panel/lazy/EditLazyContentActivity.smali",
+      "originSha256": "ef9f01b75d034b22bf8141ff3f45e67ffd649db6e3dfd384c9276611d17cf604",
+      "modSha256": "b0850cce09d3d4f1dcd272f739273bbbe1fc399b0ef8dd8988766171c3b3c9a6",
+      "methods": [
+        "public static final access$buildContent(Lcom/baidu/input/lazycorpus/panel/lazy/EditLazyContentActivity;ZLcom/baidu/input/cocomodule/lazy/LazyContent;)V"
+      ]
+    },
+    {
+      "name": "com.baidu.input.sync.clipboard.ClipboardSyncHelper",
+      "path": "com/baidu/input/sync/clipboard/ClipboardSyncHelper.smali",
+      "originSha256": "2a00df7902c7bea4cfaaf650f159cc2f40980b5ddccad5d06534697336a358cb",
+      "modSha256": "9e214f428f4e33661db75031a86593bc083cd41f51b7bf7b1b38dda64da538c7",
+      "methods": [
+        "public static c()Z"
+      ]
+    }
+  ],
+  "formatOnly": [
+    "com/baidu/input/ad/OpenAppDialogManager.smali",
+    "com/baidu/input/api/NovelLoaderImpl.smali",
+    "com/baidu/input/common/imageloader/ImageLoader.smali",
+    "com/baidu/input/common/utils/ScreenStatusUtils.smali",
+    "com/baidu/input/config/ImeBuildConfigDependencies.smali",
+    "com/baidu/input/coupleskin/CoupleSkinUtil.smali",
+    "com/baidu/input/emotion/type/EmotionManager.smali",
+    "com/baidu/input/emotion/util/ImeStateConfig.smali",
+    "com/baidu/util/AppTrace.smali",
+    "com/baidu/util/ColorReplaceHelper.smali",
+    "com/baidu/util/VersionUtils.smali",
+    "com/baidu/videoads/reward/RewardGlobal.smali",
+    "com/baidu/input/ime/AbsSoftView.smali",
+    "com/baidu/input/ime/cloudinput/manage/CloudInputGlobal.smali",
+    "com/baidu/input/ime/editor/CustomSubList.smali",
+    "com/baidu/input/ime/editor/popupdelegate/CloseFloatHintDelegate.smali",
+    "com/baidu/input/ime/emojisearch/SearchStateManager.smali",
+    "com/baidu/input/ime/floatmode/FloatPaint.smali",
+    "com/baidu/input/ime/front/privilege/PrivilegePackageManager.smali",
+    "com/baidu/input/ime/inputbar/view/InputInfoCompose.smali",
+    "com/baidu/input/ime/keymap/HoldingVibrateHelper.smali",
+    "com/baidu/input/ime/keymap/more/KeyMapCand.smali",
+    "com/baidu/input/ime/pad/PadUtils.smali",
+    "com/baidu/input/ime/params/anim/InputShowHideAnimHandler.smali",
+    "com/baidu/input/ime/params/anim/IsolationAnimHandler.smali",
+    "com/baidu/input/ime/toucheffect/HeadsetPlugReceiver.smali",
+    "com/baidu/input/ime/voicerecognize/VoicePanelEntranceManager.smali",
+    "com/baidu/input/ime/voicerecognize/autoback/AutoBackHelper.smali",
+    "com/baidu/input/ime/voicerecognize/common/VoiceUtils.smali",
+    "com/baidu/input/imebusiness/cardad/AdInfoGlobal.smali",
+    "com/baidu/webkit/engine/ZeusEnvironment.smali",
+    "com/baidu/webkit/internal/monitor/SessionMonitorEngine.smali",
+    "com/baidu/input/layout/store/flutterenter/FluFontShareUtils.smali",
+    "com/baidu/input/mpermissions/PermissionPolicyFactory.smali",
+    "com/baidu/input/pub/ContactHelper.smali",
+    "com/baidu/input/runner/AbsRunner.smali",
+    "com/baidu/input/runner/ContactRunner.smali",
+    "com/baidu/input/runner/GetLocationRunner.smali",
+    "com/baidu/input/runner/ThemePreviewRunner.smali",
+    "com/huawei/hms/adapter/AvailableUtil.smali",
+    "com/huawei/hms/framework/common/hianalytics/InitReport.smali",
+    "androidx/core/graphics/TypefaceCompatApi21Impl.smali",
+    "androidx/core/view/KeyEventDispatcher.smali",
+    "androidx/core/view/WindowInsetsCompat$BuilderImpl20.smali",
+    "androidx/core/view/WindowInsetsCompat$Impl20.smali",
+    "androidx/viewpager/widget/ViewPager.smali",
+    "com/alibaba/android/arouter/facade/template/ILogger.smali",
+    "com/alibaba/android/arouter/launcher/ARouter.smali",
+    "com/alibaba/android/arouter/utils/DefaultLogger.smali",
+    "com/alipay/apmobilesecuritysdk/otherid/UmidSdkWrapper.smali",
+    "com/alipay/sdk/app/AlipayApi.smali",
+    "com/alipay/sdk/m/b/a.smali",
+    "com/alipay/sdk/m/c/c.smali",
+    "com/alipay/sdk/m/l/b.smali",
+    "com/alipay/sdk/m/n/a.smali",
+    "com/alipay/sdk/m/s0/c.smali",
+    "com/android/inputmethod/latin/utils/PrevWordsInfoUtils.smali",
+    "com/android/inputmethod/latin/utils/SubtypeLocaleUtils.smali",
+    "com/baidu/acs/emojiacs/AcsEmojiEventProxy.smali",
+    "com/baidu/acs/emojiacs/EmojiAcsQQHandler.smali",
+    "com/baidu/acs/emojiacs/EmojiAcsWxHandler.smali",
+    "com/baidu/algota/OtaServiceManager.smali",
+    "com/baidu/android/imsdk/chatmessage/sync/SyncManager.smali",
+    "com/baidu/android/pushservice/a0/k.smali",
+    "com/baidu/android/pushservice/b0/f.smali",
+    "com/baidu/android/pushservice/h.smali",
+    "com/baidu/android/pushservice/j.smali",
+    "com/baidu/android/pushservice/jni/PushSocket.smali",
+    "com/baidu/bbm/flywheel/BlockWatcherWrapper.smali",
+    "com/baidu/bdtask/ui/components/toast/d.smali",
+    "com/baidu/bdtask/utils/ToastUtils.smali",
+    "com/baidu/browser/sailor/BdSailorWebSettings.smali",
+    "com/baidu/cyberplayer/sdk/CyberPlayerCoreInvoker.smali",
+    "com/baidu/cyberplayer/sdk/DuMediaCache.smali",
+    "com/baidu/cyberplayer/sdk/dlna/DlnaProviderAsync$ServiceStateManager.smali",
+    "com/baidu/input/ImeSkinRecommendActivity.smali",
+    "com/heytap/openid/sdk/m_d.smali",
+    "com/heytap/openid/sdk/m_h.smali"
+  ],
+  "packagingOnly": [
+    "androidx/multidex/MultiDexApplication.smali"
+  ],
+  "inputs": {
+    "classes2_smali.zip": {
+      "origin": "c5b6fd8252f6a41e5e16025659f9caee63142643e2174c51d39387478f21b358",
+      "mod": "ad54995934f2cf909eb5f3ce6c54b7a55f195c13381cfddd00b93ab5fa5d5a15"
+    },
+    "classes3_smali.zip": {
+      "origin": "d5c081e78b8631647bd66fd36b4c3c4e30bed32471b5b5b6deae6b61ccb1c0ba",
+      "mod": "30412b63f3a1cf9c6f66650052920d5af1cb0381c5842967d7f101bed1d4de7c"
+    },
+    "classes4_smali.zip": {
+      "origin": "ca9e13d2b036112bcc757f4c82f6fbf606ad46eeb5e9d6cc3a2de1e6096cd2b6",
+      "mod": "d91ec37871d58c8230e81d1b180395037bb01dbd8ee3c97a67e7cab32d7436f4"
+    },
+    "classes_smali.zip": {
+      "origin": "43f2001b55e3d7a88946e21b45338678768e226a5298e1b838d54ff02f271e01",
+      "mod": "c10e515e707e002b2a1d0a296e835e2905f1f9c71ff0d289ee519f6f08ca0449"
+    }
+  },
+  "resources": {
+    "format": 1,
+    "sourceSha256": "fbe0b708b436d8e0487236f8381f0e898ff41666aaaa74ea89a3a6d41cc54d41",
+    "targetSha256": "ef4dfb2f2fd8d01a896efa73d52cf97412637cde385beb5f7ba4ff518b7b49e4",
+    "sourceSize": 8151276,
+    "targetSize": 8138148
+  }
+}

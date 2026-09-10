@@ -1,0 +1,62 @@
+{
+  "note": "Configuration structure size, color encoding and boolean true encodings normalized; full binary patch preserves mod bytes.",
+  "encodingOnlyEntryCount": 413,
+  "changes": [
+    {
+      "id": "0x7f120393",
+      "type": "string",
+      "name": "clipboard_cand_max_hint",
+      "config": "",
+      "origin": [
+        3,
+        "剪贴板每条最多7000字"
+      ],
+      "mod": [
+        3,
+        "剪贴板每条最多100000000字"
+      ]
+    },
+    {
+      "id": "0x7f12039b",
+      "type": "string",
+      "name": "clipboard_limit_rows_guide",
+      "config": "",
+      "origin": [
+        3,
+        "云端剪贴板最多保存300条数据 ，超出的内容将会被删除且不可恢复，是否继续？"
+      ],
+      "mod": [
+        3,
+        "云端剪贴板最多保存100000000条数据 ，超出的内容将会被删除且不可恢复，是否继续？"
+      ]
+    },
+    {
+      "id": "0x7f12039c",
+      "type": "string",
+      "name": "clipboard_limit_rows_words_guide",
+      "config": "",
+      "origin": [
+        3,
+        "云端剪贴板最多保存300条数据，每条最多7000字 ，超出的内容将会被删除且不可恢复，是否继续？"
+      ],
+      "mod": [
+        3,
+        "云端剪贴板最多保存100000000条数据，每条最多100000000字 ，超出的内容将会被删除且不可恢复，是否继续？"
+      ]
+    },
+    {
+      "id": "0x7f12039d",
+      "type": "string",
+      "name": "clipboard_limit_words_guide",
+      "config": "",
+      "origin": [
+        3,
+        "云端剪贴板每条最多7000字 ，部分超长内容将被截断，是否继续同步"
+      ],
+      "mod": [
+        3,
+        "云端剪贴板每条最多100000000字 ，部分超长内容将被截断，是否继续同步"
+      ]
+    }
+  ]
+}

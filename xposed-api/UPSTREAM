@@ -1,0 +1,3 @@
+https://github.com/libxposed/api
+commit 55efdf9d159195261d7326e9e125965a90025a12
+API 100 (annotation callbacks); unmodified Java source, compileOnly.
