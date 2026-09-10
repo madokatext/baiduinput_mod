@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = 'BaiduInputMod'
-include ':app', ':xposed-api'
+include ':app', ':xposed-api', ':xposed-service'

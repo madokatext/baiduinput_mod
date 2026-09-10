@@ -1,5 +1,5 @@
 {
-  "note": "Configuration structure size, color encoding and boolean true encodings normalized; full binary patch preserves mod bytes.",
+  "note": "Historical origin/mod comparison. Since 1.2.0 only the four semantic string changes are applied by method hooks; binary resource-table replacement was removed.",
   "encodingOnlyEntryCount": 413,
   "changes": [
     {

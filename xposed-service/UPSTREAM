@@ -1,0 +1,4 @@
+https://github.com/libxposed/service/tree/100
+Tag: 100
+Archive SHA-256: a347e9d88712ff40b9ade49e9a8cf6bce02e221d77738843349abefea284eaa1
+Service Java and interface AIDL sources are unmodified; combined into one Android library.

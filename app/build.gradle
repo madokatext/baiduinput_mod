@@ -2,24 +2,6 @@ plugins {
     id 'com.android.application'
 }
 
-configurations {
-    smaliAssembler
-}
-
-def payloadAssets = layout.buildDirectory.dir('generated/parityAssets')
-def assemblePayload = tasks.register('assemblePayload', JavaExec) {
-    classpath = configurations.smaliAssembler
-    mainClass.set('org.jf.smali.Main')
-    inputs.dir(rootProject.file('payload/smali'))
-    outputs.file(payloadAssets.map { it.file('parity/classes.dex') })
-    doFirst {
-        def dex = payloadAssets.get().file('parity/classes.dex').asFile
-        dex.parentFile.mkdirs()
-        args = ['assemble', '--api', '35', '--output', dex.absolutePath,
-                rootProject.file('payload/smali').absolutePath]
-    }
-}
-
 android {
     namespace 'io.github.madokatext.baiduinputmod'
     compileSdk 35
@@ -27,8 +9,8 @@ android {
         applicationId 'io.github.madokatext.baiduinputmod'
         minSdk 35
         targetSdk 35
-        versionCode 7
-        versionName '1.1.3'
+        versionCode 8
+        versionName '1.2.0'
     }
     buildTypes {
         release {
@@ -37,17 +19,14 @@ android {
             signingConfig signingConfigs.debug
         }
     }
-    sourceSets.main.assets.srcDir(payloadAssets)
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
 }
 
-tasks.named('preBuild').configure { dependsOn(assemblePayload) }
-
 dependencies {
     compileOnly project(':xposed-api')
+    implementation project(':xposed-service')
     compileOnly 'androidx.annotation:annotation:1.9.1'
-    smaliAssembler 'org.smali:smali:2.5.2'
 }

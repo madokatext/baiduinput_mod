@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
+        android:name=".SettingsApplication"
         android:allowBackup="false"
         android:label="百度输入法 Mod 对齐"
         android:description="@string/module_description"
