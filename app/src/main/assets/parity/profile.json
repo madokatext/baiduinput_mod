@@ -157,6 +157,38 @@
       "methods": [
         "public static c()Z"
       ]
+    },
+    {
+      "name": "com.baidu.input.ime.SubList",
+      "path": "com/baidu/input/ime/SubList.smali",
+      "originSha256": "d82a7303d767c4a78c30a8b813d2d5484e76da345eccebc9a586dd9241c85f0e",
+      "modSha256": "d82a7303d767c4a78c30a8b813d2d5484e76da345eccebc9a586dd9241c85f0e",
+      "payloadSha256": "013f3662b47396aac5131329bda22743420534f3c6f94255d55a14ea86450240",
+      "feature": "nine-key-pinyin-direct-scroll",
+      "methods": [
+        "public final C(J)V",
+        "public final g(Lcom/baidu/input/ime/InputStatMac;[Ljava/lang/String;)V",
+        "public final l(II)V",
+        "public final z(IIII)V",
+        "public final baiduModConfigureTouch(Lcom/baidu/input/ime/InputStatMac;)V",
+        "public final baiduModClampOffset(I)I",
+        "public final baiduModStopMotion()V"
+      ]
+    },
+    {
+      "name": "com.baidu.input.optimization.MainSubListWrapper",
+      "path": "com/baidu/input/optimization/MainSubListWrapper.smali",
+      "originSha256": "7bb706a1976e73d88ffe294c1b209bc696defd2752e3cde908629b7a0941c899",
+      "modSha256": "7bb706a1976e73d88ffe294c1b209bc696defd2752e3cde908629b7a0941c899",
+      "payloadSha256": "141f3efc3552a812b58736cb491183c46fa0ee6c77bb96151071a2bc3c4fd5c7",
+      "feature": "nine-key-pinyin-direct-scroll",
+      "methods": [
+        "public final G()V",
+        "public final a()V",
+        "public final b(IIZ)V",
+        "public final computeScroll()V",
+        "public final d(I)I"
+      ]
     }
   ],
   "formatOnly": [

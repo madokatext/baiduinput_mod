@@ -9,6 +9,8 @@ from pathlib import Path
 import re
 import zipfile
 
+from patch_candidate_scroll import apply_candidate_scroll
+
 
 def sha(data):
     return hashlib.sha256(data).hexdigest()
@@ -102,6 +104,7 @@ def main():
                 report['classes'].append({'name': name[:-6].replace('/', '.'), 'path': name,
                                           'originSha256': sha(av), 'modSha256': sha(bv),
                                           'methods': [k for k in am if am[k] != bm.get(k)]})
+    apply_candidate_scroll(root, args.origin, args.mod, report)
     original = (args.origin / 'resources.arsc').read_bytes()
     modified = (args.mod / 'resources.arsc').read_bytes()
     delta = resource_delta(original, modified)
