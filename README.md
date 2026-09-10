@@ -1,6 +1,6 @@
 # 百度输入法 Mod 模块
 
-**1.2.0 将整个模块迁移到方法 Hook，并加入“顶部候选栏跟手滚动”开关。** 面向 Android 15（SDK 35）、LSPosed modern API 100，作用域为 `com.baidu.input`。
+**1.2.1 修复候选栏 Hook 将 CandidateView 控制对象误当成 Android View、导致功能无法安装的问题。** 延续 1.2.0 的全模块方法 Hook 和“顶部候选栏跟手滚动”开关。面向 Android 15（SDK 35）、LSPosed modern API 100，作用域为 `com.baidu.input`。
 
 所有功能都不再使用整类替换：已删除 20 个 smali 覆盖类、DEX 前置加载器、资源表覆盖器和 smali 汇编任务。模块不会改动应用 ClassLoader、`dexElements`、安装 APK 或应用签名。构建只编译模块与 API 100 设置通信源码。
 
@@ -35,7 +35,7 @@
 - 使用系统方法的 Hook 只在指定百度方法的本次调用范围内调整参数；线程上下文在返回或异常时恢复。已知可能内联的调用点采用 API 100 的定点反优化。
 - 适配依据仍是用户提供的百度输入法 **13.3.6.52（1149）** 源材料。改用 Hook 降低了对完整类实现和资源表的耦合，**不保证未来任意版本自动兼容**：若混淆名、字段或语义改变，仍需更新对应适配。
 
-日志以 `Hook group installed:`、`Hook group unavailable; keeping app behavior:` 区分各功能安装结果；调用时发现不兼容会输出 `Hook disabled after incompatible call:`。候选栏额外输出最多十二条不含候选内容的 `CandidateScroll 1.2.0` 日志。安装日志仅表示 Hook 注册完成，不能代替设备效果验证。
+日志以 `Hook group installed:`、`Hook group unavailable; keeping app behavior:` 区分各功能安装结果；调用时发现不兼容会输出 `Hook disabled after incompatible call:`。候选栏额外输出最多十二条不含候选内容的 `CandidateScroll 1.2.1` 日志，包括触摸入口的开关/九键状态、顶部 DOWN 捕获结果和拖动释放结果。安装日志仅表示 Hook 注册完成，不能代替设备效果验证。
 
 ## GitHub Actions 构建
 

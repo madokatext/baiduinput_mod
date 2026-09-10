@@ -15,7 +15,7 @@ import java.util.WeakHashMap;
 import io.github.libxposed.api.XposedInterface;
 import static io.github.madokatext.baiduinputmod.HookSupport.*;
 
-/** Two view hooks. Baidu still handles the original DOWN and ordinary taps. */
+/** Two controller hooks. Baidu still handles the original DOWN and ordinary taps. */
 final class CandidateScrollHooks {
     private static final String CAND = "com.baidu.input.ime.cand.CandHandler";
     private static final String VIEW = "com.baidu.input.ime.cand.CandidateView";
@@ -25,15 +25,17 @@ final class CandidateScrollHooks {
     private static final String MANAGER = "com.baidu.input.panel.render.cand.slide.SlidingVisibleWindowManager";
     private static final String CELL = "com.baidu.input.panel.render.cand.slide.ISlidingCell";
     private final HookSupport h;
-    // UI-thread state; values do not retain the view or handler.
-    private final Map<View, Gesture> gestures = new WeakHashMap<>();
+    // CandidateView is a controller, not an android.view.View. Keep each
+    // controller's gestures separate even when controllers share a host view.
+    private final Map<Object, Gesture> gestures = new WeakHashMap<>();
     private Field handlerField, area, modern, legacy, manager, legacyBounds, selected, request,
             legacyScroller, legacyTracker, legacyDrag, legacyCapture, previousX,
             slideField, slideBounds, slideWindow, slideScroller, slideTracker, slideDrag,
             slidePhase, slideAnimating, slidePressed, slideClick, slidePreviousX,
             windowWidth, windowOffset, windowFactory, windowCells, keyState, layout, language;
-    private Method mode, clearPress, releaseKeys, endSlide, moveLegacy, layoutWindow, prefetch, count, cellEnd, cellPress;
-    private boolean failed;
+    private Method mode, clearPress, releaseKeys, endSlide, moveLegacy, layoutWindow, prefetch, count, cellEnd, cellPress,
+            getView, invalidate, removeCallbacks;
+    private boolean failed, loggedTouch;
     private int traces;
     CandidateScrollHooks(HookSupport h) { this.h = h; }
     void install() {
@@ -41,7 +43,7 @@ final class CandidateScrollHooks {
             bind(); // Resolve every dependency before installing either hook.
             h.add(h.method(VIEW, "onTouchEvent", boolean.class, MotionEvent.class), this::beforeTouch, this::afterTouch);
             h.add(h.method(VIEW, "r0", void.class), cb -> {
-                Gesture g = gestures.get((View) cb.getThisObject());
+                Gesture g = gestures.get(cb.getThisObject());
                 if (g != null && g.dragged) cb.returnAndSkip(null);
             }, null);
         });
@@ -51,7 +53,10 @@ final class CandidateScrollHooks {
                 window = h.type(WINDOW), managerType = h.type(MANAGER), cell = h.type(CELL),
                 factory = h.type("com.baidu.input.ime.cand.slide.CoreStringSlidingCellFactory"),
                 stat = h.type("com.baidu.input.ime.InputStatMac");
-        if (!View.class.isAssignableFrom(view)) throw new IllegalStateException("Candidate view is not a View");
+        getView = method(view, "getView", View.class);
+        // AbsCandView.n() refreshes both the host and the candidate layout layers.
+        invalidate = method(view, "n", void.class);
+        removeCallbacks = method(view, "q", void.class, Runnable.class);
         handlerField = field(view, "F", cand); area = field(view, "r0", byte.class);
         modern = field(abs, "b0", boolean.class); legacy = field(abs, "l", boolean.class);
         manager = field(abs, "a0", managerType); legacyBounds = field(abs, "e1", Rect.class);
@@ -88,23 +93,31 @@ final class CandidateScrollHooks {
         return rect != null && rect.contains((int) event.getX(), (int) event.getY());
     }
     private void beforeTouch(XposedInterface.BeforeHookCallback cb) {
-        View view = (View) cb.getThisObject();
+        Object controller = cb.getThisObject();
         MotionEvent event = (MotionEvent) cb.getArgs()[0];
         try {
             int action = event.getActionMasked();
             if (action == MotionEvent.ACTION_DOWN) {
-                gestures.remove(view);
-                if (failed || !h.module.candidateScrollEnabled() || !nineKey() || event.getPointerCount() != 1) return;
-                Object handler = handlerField.get(view);
+                gestures.remove(controller);
+                if (failed) return;
+                boolean enabled = h.module.candidateScrollEnabled(), nineKey = nineKey();
+                if (!loggedTouch) {
+                    loggedTouch = true;
+                    trace("touch entry; enabled=" + enabled + "; nineKey=" + nineKey);
+                }
+                if (!enabled || !nineKey || event.getPointerCount() != 1) return;
+                Object handler = handlerField.get(controller);
                 if (handler == null) return;
                 Object slide = slide(handler);
                 if (!contains(slide == null ? null : (Rect) slideBounds.get(slide), event)
                         && !contains((Rect) legacyBounds.get(null), event)) return;
+                View host = (View) getView.invoke(controller);
+                if (host == null) return;
                 stop(handler);
-                gestures.put(view, new Gesture(handler, event, ViewConfiguration.get(view.getContext()).getScaledTouchSlop()));
+                gestures.put(controller, new Gesture(handler, event, ViewConfiguration.get(host.getContext()).getScaledTouchSlop()));
                 return;
             }
-            Gesture g = gestures.get(view);
+            Gesture g = gestures.get(controller);
             if (g == null || !g.captured || g.handler.get() == null) return;
             Object handler = g.handler.get();
             boolean cancel = action == MotionEvent.ACTION_CANCEL || event.getPointerCount() != 1
@@ -113,8 +126,8 @@ final class CandidateScrollHooks {
             if (!g.dragged && (cancel || crossedSlop(g, event))) {
                 g.dragged = true;
                 clear(handler);
-                releaseKeys.invoke(view);
-                if (view instanceof Runnable) view.removeCallbacks((Runnable) view);
+                releaseKeys.invoke(controller);
+                if (controller instanceof Runnable) removeCallbacks.invoke(controller, controller);
                 trace("drag captured");
             }
             if (g.dragged) {
@@ -129,42 +142,47 @@ final class CandidateScrollHooks {
                 }
                 stop(handler);
                 if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
-                    clear(handler); releaseKeys.invoke(view); endSlide.invoke(handler);
+                    clear(handler); releaseKeys.invoke(controller); endSlide.invoke(handler);
                     g.captured = false;
                     trace("drag released without selection");
                 }
-                view.invalidate();
+                invalidate.invoke(controller);
             } else if (action == MotionEvent.ACTION_MOVE) {
                 // No horizontal pixel displacement yet. An ordinary UP still
                 // follows Baidu's original selection path.
                 cb.returnAndSkip(true);
             }
         } catch (Throwable error) {
-            Gesture g = gestures.get(view);
+            Gesture g = gestures.get(controller);
             if (g != null && g.captured) {
                 g.dragged = true; g.cancelled = true; cb.returnAndSkip(true);
-                try { clear(g.handler.get()); releaseKeys.invoke(view); } catch (Throwable ignored) { }
+                try { clear(g.handler.get()); releaseKeys.invoke(controller); } catch (Throwable ignored) { }
             }
             fail(error);
         }
     }
     private void afterTouch(XposedInterface.AfterHookCallback cb) {
-        View view = (View) cb.getThisObject();
-        Gesture g = gestures.get(view);
+        Object controller = cb.getThisObject();
+        Gesture g = gestures.get(controller);
         if (failed || g == null) return;
         MotionEvent event = (MotionEvent) cb.getArgs()[0];
         try {
             if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
                 Object handler = g.handler.get();
                 if (!Boolean.TRUE.equals(cb.getResult()) || area.getByte(null) != 2 || handler == null) {
-                    gestures.remove(view); return;
+                    trace("DOWN left to app; area=" + area.getByte(null) + "; handled=" + cb.getResult());
+                    gestures.remove(controller); return;
                 }
                 Object slide = slide(handler);
                 g.modern = modern.getBoolean(handler) && slide != null && contains((Rect) slideBounds.get(slide), event);
                 g.captured = g.modern || (legacy.getBoolean(handler) && contains((Rect) legacyBounds.get(null), event));
-                if (!g.captured) gestures.remove(view);
-            } else if (event.getActionMasked() == MotionEvent.ACTION_UP && !g.dragged) gestures.remove(view);
-        } catch (Throwable error) { gestures.remove(view); fail(error); }
+                if (g.captured) trace("top DOWN captured; renderer=" + (g.modern ? "modern" : "legacy"));
+                else {
+                    trace("top DOWN left to app; no candidate capture");
+                    gestures.remove(controller);
+                }
+            } else if (event.getActionMasked() == MotionEvent.ACTION_UP && !g.dragged) gestures.remove(controller);
+        } catch (Throwable error) { gestures.remove(controller); fail(error); }
     }
     private static boolean crossedSlop(Gesture g, MotionEvent event) {
         // Match the previous direct-scroll feature: the first horizontal pixel
@@ -227,7 +245,7 @@ final class CandidateScrollHooks {
         else windowOffset.setInt(window, result);
         prefetch.invoke(window);
     }
-    private void trace(String message) { if (traces++ < 12) h.module.log("CandidateScroll 1.2.0: " + message); }
+    private void trace(String message) { if (traces++ < 12) h.module.log("CandidateScroll 1.2.1: " + message); }
     private void fail(Throwable error) {
         if (!failed) { failed = true; h.module.log("Candidate touch hooks disabled; app interface changed", error); }
     }

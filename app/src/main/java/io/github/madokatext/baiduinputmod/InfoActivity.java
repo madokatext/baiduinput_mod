@@ -23,7 +23,7 @@ public final class InfoActivity extends Activity {
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(padding, padding, padding, padding);
         content.addView(text("百度输入法 Mod 设置", 24));
-        content.addView(text("1.2.0 · Android 15 · LSPosed API 100\n", 14));
+        content.addView(text("1.2.1 · Android 15 · LSPosed API 100\n", 14));
         candidate = new Switch(this);
         candidate.setText("顶部候选栏跟手滚动"); candidate.setTextSize(18);
         candidate.setPadding(0, padding / 2, 0, padding / 2);

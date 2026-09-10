@@ -2,6 +2,12 @@
 
 1.2.0 删除 CandHandler、SlidingView、CandidateView 三个整类覆盖。当前仅注册 CandidateView 的 `onTouchEvent(MotionEvent)` 和 `r0()` 两个 Hook。左侧拼音列表没有 Hook；原版 SubList、MainSubListWrapper、KeyMap 继续由应用自身加载。
 
+## 1.2.1：修复控制对象与视图的混淆
+
+最新设备日志 `Log_2026-9-10_11-38-26.txt` 在 11:37:36.666 记录 `Hook group unavailable; keeping app behavior: nine-key top candidate touch`，异常是 `IllegalStateException: Candidate view is not a View`。1.2.0 在依赖解析阶段误要求 CandidateView 继承 Android View，导致两个候选栏 Hook 都没有安装。
+
+原版继承链为 `CandidateView → AbsCandView → AbsSoftView → AbsKeymapView → Object`。1.2.1 将手势状态关联到控制对象，通过原 `getView()` 获取 InputContainerView 的 Context；释放按压仍对控制对象调用 `w()`，延迟回调通过原 `q(Runnable)` 清除；绘制刷新调用原 `AbsCandView.n()`，由应用同时刷新宿主及候选布局层。两个 Hook 保持不变，不引入整类替换。日志新增触摸入口和顶部 DOWN 捕获结果，区分安装成功与实际捕获手势。
+
 ## 开关
 
 模块设置界面通过 API 100 XposedService 写入 `settings/nine_key_top_candidate_direct_scroll`，默认 true。输入法通过 `getRemotePreferences("settings")` 读取 LSPosed 同步的值，每次 DOWN 决定是否启用。关闭后该手势使用完整原版路径；设置变化不会中途丢掉上一手势的按压和速度跟踪清理。远程设置不可用时保留原版触摸行为。
