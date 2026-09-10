@@ -111,7 +111,7 @@ public final class HookSupport {
     @XposedHooker
     public static final class Router implements XposedInterface.Hooker {
         @BeforeInvocation
-        public static Invocation before(BeforeHookCallback cb) {
+        public static Invocation before(XposedInterface.BeforeHookCallback cb) {
             Rule rule = RULES.get(cb.getMember());
             Invocation invocation = new Invocation(rule);
             if (rule != null && !rule.failed) {
@@ -122,7 +122,7 @@ public final class HookSupport {
             return invocation;
         }
         @AfterInvocation
-        public static void after(AfterHookCallback cb, Invocation invocation) {
+        public static void after(XposedInterface.AfterHookCallback cb, Invocation invocation) {
             if (invocation == null) return;
             try {
                 Rule rule = invocation.rule;
