@@ -7,7 +7,10 @@ import android.content.res.Resources;
 import android.content.res.loader.AssetsProvider;
 import android.content.res.loader.ResourcesLoader;
 import android.content.res.loader.ResourcesProvider;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.ParcelFileDescriptor;
+import android.os.SystemClock;
 import android.util.Base64;
 
 import org.json.JSONArray;
@@ -18,10 +21,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -31,10 +34,15 @@ final class ResourceOverlay implements AutoCloseable {
     private final String sourcePath;
     private final ResourcesLoader loader = new ResourcesLoader();
     private final List<ZipFile> sourceApks = new ArrayList<>();
-    private final Set<Resources> attached = Collections.newSetFromMap(new WeakHashMap<>());
+    private enum Attachment { PENDING, ATTACHED, SKIPPED, FAILED }
+    // This monitor protects only state; no Android calls or logging while holding it.
+    private final Map<Resources, Attachment> attachments = new WeakHashMap<>();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final ThreadLocal<Boolean> attaching = ThreadLocal.withInitial(() -> false);
     private ResourcesProvider provider;
-    private boolean assetErrorReported;
+    private final AtomicBoolean assetErrorReported = new AtomicBoolean();
+    private boolean attachmentReported;
+    private volatile boolean closed;
 
     ResourceOverlay(ParityModule module, ApplicationInfo app, JSONObject patch) throws Exception {
         this.module = module;
@@ -90,11 +98,8 @@ final class ResourceOverlay implements AutoCloseable {
                         }
                         return null;
                     } catch (Exception error) {
-                        synchronized (ResourceOverlay.this) {
-                            if (!assetErrorReported) {
-                                assetErrorReported = true;
-                                module.log("Resource asset failed: " + path, error);
-                            }
+                        if (assetErrorReported.compareAndSet(false, true)) {
+                            module.log("Resource asset failed: " + path, error);
                         }
                         return null;
                     }
@@ -110,11 +115,35 @@ final class ResourceOverlay implements AutoCloseable {
         }
     }
 
-    void attach(Resources resources) throws Exception {
-        if (resources == null || attaching.get()) return;
-        synchronized (attached) {
-            if (attached.contains(resources)) return;
+    void attach(Resources resources) {
+        if (resources == null || closed || attaching.get()) return;
+        boolean onMain = Looper.myLooper() == Looper.getMainLooper();
+        synchronized (attachments) {
+            Attachment state = attachments.get(resources);
+            // Main may finish a worker's queued attachment before the next resource read.
+            if (state != null && !(onMain && state == Attachment.PENDING)) return;
+            attachments.put(resources, Attachment.PENDING);
         }
+        // Workers must never wait for the main thread while holding app/framework locks.
+        // The Application.attach hook applies application resources synchronously on main.
+        if (onMain) {
+            attachOnMain(resources);
+        } else if (!mainHandler.post(() -> attachOnMain(resources))) {
+            setAttachment(resources, Attachment.FAILED);
+            module.reportResourceFailure(new IllegalStateException("Main looper rejected resource attachment"));
+        }
+    }
+
+    private void setAttachment(Resources resources, Attachment state) {
+        synchronized (attachments) { attachments.put(resources, state); }
+    }
+
+    private void attachOnMain(Resources resources) {
+        if (closed) return;
+        synchronized (attachments) {
+            if (attachments.get(resources) != Attachment.PENDING) return;
+        }
+        long started = SystemClock.uptimeMillis();
         attaching.set(true);
         try {
             // A process can also load another package or the module's own Resources.
@@ -130,12 +159,23 @@ final class ResourceOverlay implements AutoCloseable {
                     break;
                 }
             }
-            if (!matches) return;
-            synchronized (attached) {
-                if (attached.contains(resources)) return;
-                resources.addLoaders(loader);
-                attached.add(resources);
+            if (!matches) {
+                setAttachment(resources, Attachment.SKIPPED);
+                return;
             }
+            resources.addLoaders(loader);
+            setAttachment(resources, Attachment.ATTACHED);
+            long elapsed = SystemClock.uptimeMillis() - started;
+            if (!attachmentReported) {
+                attachmentReported = true;
+                module.log("Resource overlay attached on main thread (" + elapsed + " ms)");
+            } else if (elapsed > 100) {
+                module.log("Slow resource attachment: " + elapsed + " ms");
+            }
+        } catch (Throwable error) {
+            // A persistent failure must not be retried on every getResources() call.
+            setAttachment(resources, Attachment.FAILED);
+            module.reportResourceFailure(error);
         } finally {
             attaching.remove();
         }
@@ -143,6 +183,7 @@ final class ResourceOverlay implements AutoCloseable {
 
     @Override
     public void close() {
+        closed = true;
         if (provider != null) {
             loader.removeProvider(provider);
             provider.close();

@@ -4,7 +4,9 @@
 
 实现覆盖这组材料中的 17 个功能类与资源表差异。补充提供的 origin APK 为 **13.3.6.52（versionCode 1149）**，包名、资源表指纹及 17 个目标类定义已通过静态读取确认。**没有运行设备测试，不能将源码覆盖视为已验证的运行时完全一致。** 尚无完整 mod APK，无法比较其余 DEX、Manifest、assets 和 native 库是否另有差异。
 
-**1.0.1 修复启动时补丁资产读取失败。** Android Gradle Plugin 会把 `resources.patch.json.gz` 解压并打包为 `resources.patch.json`；读取器现在兼容这两种路径，并根据 gzip 文件头判断是否需要解压。初版日志、根因和原始 APK 分析见 [`docs/startup-failure.md`](docs/startup-failure.md)。
+**1.0.2 修复 ART 类探测导致的补丁安装失败，并调整资源附加的线程和锁。** 删除会主动加载原版类的 `findLoadedClass` 检查；内存 DEX 直接关联应用 ClassLoader；资源附加只在主线程执行，不再 Hook `ResourcesManager`，失败资源不重复重试。日志证据与卡死分析的限制见 [`docs/art-loading-failure.md`](docs/art-loading-failure.md)。
+
+1.0.1 已修复补丁资产读取：Android Gradle Plugin 会把 `resources.patch.json.gz` 解压并打包为 `resources.patch.json`；读取器兼容这两种路径，并根据 gzip 文件头判断是否需要解压。初版日志、根因和原始 APK 分析见 [`docs/startup-failure.md`](docs/startup-failure.md)。
 
 ## 已覆盖的差异
 
@@ -28,9 +30,9 @@
 2. 安装 Actions 产出的模块 APK。
 3. 在 LSPosed 中启用“百度输入法 Mod 对齐”，勾选 `com.baidu.input`。
 4. 强行停止百度输入法的所有进程后重新打开，或重启设备。
-5. LSPosed 日志显示 `Installed 17 mod classes and exact resource-table patch` 表示补丁已安装；模块说明页不检测激活状态。
+5. LSPosed 日志分别显示 `DEX overlay installed for 17 mod classes` 和 `Resource overlay attached on main thread`，表示 DEX 搜索路径已更新、资源表已实际附加；前一条日志仅代表 DEX 安装步骤，不能单独证明资源生效或所有功能一致。模块说明页不检测激活状态。
 
-若日志显示版本指纹不匹配、目标类已提前加载或资源附加失败，该次运行没有实现完整对齐。原有云端服务和同步能力仍由 origin/mod 共用的服务端决定。
+若日志显示版本指纹不匹配、DEX 安装失败或资源附加失败，该次运行没有实现完整对齐。原有云端服务和同步能力仍由 origin/mod 共用的服务端决定。
 
 ## GitHub Actions 编译 APK
 
@@ -51,9 +53,9 @@ gradle --no-daemon --console=plain :app:assembleRelease
 ## 实现方式
 
 - **API 100**：使用 `XposedModule(XposedInterface, ModuleLoadedParam)`、API 100 注解回调及 `META-INF/xposed` 元数据。固定的官方接口源码通过 `compileOnly` 引用，避免误拉 API 101/102 或把接口打进 APK。
-- **DEX**：在目标包的 `onPackageLoaded` 中，将仅含 17 个改动类的内存 DEX 前置到应用的 `dexElements`。类仍由 origin 的应用 ClassLoader 定义，以保留私有成员、包可见成员和协程内部类之间的访问关系。保留 mod 方法的完整实现，包括分支、构造函数和协程逻辑。
-- **资源**：读取已安装 origin APK 的资源表，按 COPY/ADD 差分重建 mod 表；输入和输出都校验 SHA-256。借助 Android `ResourcesLoader`、`ResourcesProvider` 和内存文件加载；XML、TypedArray、主题及配置资源均通过 Android 资源解析路径获取值。表中引用的文件从已安装 APK 或 split APK 提供。
-- **兼容范围**：资源指纹固定到本次 origin；DEX 前置依赖 Android 15 的 `BaseDexClassLoader.pathList.dexElements`。其他模块的提前类加载或修改 class loader 可能影响注入。检测到目标类已加载时拒绝应用补丁并记录原因。
+- **DEX**：在目标包的 `onPackageLoaded` 中，使用 Android 15 的内存 `DexFile` 构造器直接关联应用 ClassLoader，然后把对应 `Element` 前置到应用的 `dexElements`。不创建供移植元素的临时 ClassLoader，不启动其后台类校验，不在安装前探测目标类。类由 origin 的应用 ClassLoader 定义，以保留私有成员、包可见成员和协程内部类之间的访问关系。保留 mod 方法的完整实现，包括分支、构造函数和协程逻辑。
+- **资源**：读取已安装 origin APK 的资源表，按 COPY/ADD 差分重建 mod 表；输入和输出都校验 SHA-256。借助 Android `ResourcesLoader`、`ResourcesProvider` 和内存文件加载；XML、TypedArray、主题及配置资源均通过 Android 资源解析路径获取值。表中引用的文件从已安装 APK 或 split APK 提供。在 `Application.attach` 和 Context 资源获取边界附加，资源变更在主线程串行完成；工作线程请求只排队、不等待主线程。新建后台 Context 的资源在队列执行前可能仍返回原始值。
+- **兼容范围**：资源指纹固定到本次 origin；DEX 前置依赖 Android 15 的 `BaseDexClassLoader.pathList.dexElements` 及内存 `DexFile` 构造器。其他模块的提前类加载或修改 class loader 可能影响注入，已经定义的原版类不能通过 DEX 前置替换。不使用 ART 的 `findLoadedClass` 作为只读检查，因为它可能主动加载类。
 - **作用域**：只处理 `com.baidu.input`，覆盖该包加载的各进程；不会更改安装 APK 或应用签名。补丁在进程内生效，禁用模块并重启输入法后恢复 origin 代码与资源；使用期间产生的输入法数据仍然保留。
 
 本项目的 API 100 源码固定在官方 [`libxposed/api` 的 `55efdf9d159195261d7326e9e125965a90025a12`](https://github.com/libxposed/api/tree/55efdf9d159195261d7326e9e125965a90025a12)，不是早期 `100` tag 的 `XposedContext` 构造接口。资源加载接口依据 [Android 15 ResourcesProvider 实现](https://github.com/aosp-mirror/platform_frameworks_base/blob/android-15.0.0_r1/core/java/android/content/res/loader/ResourcesProvider.java)。
