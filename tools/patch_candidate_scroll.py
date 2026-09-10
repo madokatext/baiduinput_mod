@@ -8,6 +8,7 @@ import re
 import zipfile
 
 CAND = 'Lcom/baidu/input/ime/cand/CandHandler;'
+VIEW = 'Lcom/baidu/input/ime/cand/CandidateView;'
 ABS = 'Lcom/baidu/input/panel/render/cand/AbsCandHandler;'
 SLIDE = 'Lcom/baidu/input/panel/render/cand/slide/SlidingView;'
 WINDOW = 'Lcom/baidu/input/panel/render/cand/slide/SlidingVisibleWindow;'
@@ -45,6 +46,14 @@ def patch_cand_handler(text):
 .field private baiduModTraceCount:I
 
 .field private baiduModMoveTraced:Z
+
+.field private baiduModDragged:Z
+
+.field private baiduModDownX:F
+
+.field private baiduModDownY:F
+
+.field private baiduModTouchSlop:I
 
 ''')
     text = prepend(text, 'public final S2(Landroid/view/MotionEvent;)Z', f'''    # p0/p1 exceed v15: preserve the register map and use /range.
@@ -99,6 +108,16 @@ def patch_cand_handler(text):
     invoke-virtual {{v0, v1}}, {CAND}->baiduModTraceMove(Ljava/lang/String;)V
 
     .line 1509''')
+    # Sliding cleanup resets o before the common b2 click fallback. Keep an
+    # independent gesture latch through cleanup and consume its release.
+    text = replace_once(text, f'''    :goto_6a0
+    iput v8, v0, {ABS}->f:I''', f'''    :goto_6a0
+    iput v8, v0, {ABS}->f:I
+    invoke-virtual {{v0}}, {CAND}->baiduModSuppressClick()Z
+    move-result v4
+    if-eqz v4, :baidu_mod_click_original
+    const/4 v1, 0x1
+    :baidu_mod_click_original''')
     # Added branches can increase distances across the existing touch method.
     start = text.index('.method public final S2(')
     end = text.index('.end method', start)
@@ -109,9 +128,25 @@ def patch_cand_handler(text):
 
     invoke-virtual {{p1}}, Landroid/view/MotionEvent;->getActionMasked()I
     move-result v0
-    if-nez v0, :done
+    if-eqz v0, :begin
+    invoke-virtual {{p0, p1}}, {CAND}->baiduModTrackRelease(Landroid/view/MotionEvent;)V
+    return-void
+    :begin
     const/4 v0, 0x0
+    iput-boolean v0, p0, {CAND}->baiduModDragged:Z
     iput-boolean v0, p0, {CAND}->baiduModMoveTraced:Z
+    invoke-virtual {{p1}}, Landroid/view/MotionEvent;->getX()F
+    move-result v1
+    iput v1, p0, {CAND}->baiduModDownX:F
+    invoke-virtual {{p1}}, Landroid/view/MotionEvent;->getY()F
+    move-result v1
+    iput v1, p0, {CAND}->baiduModDownY:F
+    sget-object v1, Lcom/baidu/input/pub/ImeBaseGlobal;->m:Landroid/app/Application;
+    invoke-static {{v1}}, Landroid/view/ViewConfiguration;->get(Landroid/content/Context;)Landroid/view/ViewConfiguration;
+    move-result-object v1
+    invoke-virtual {{v1}}, Landroid/view/ViewConfiguration;->getScaledTouchSlop()I
+    move-result v1
+    iput v1, p0, {CAND}->baiduModTouchSlop:I
     sget-object v1, {KEY}->c0:{STAT}
     if-eqz v1, :configured
     invoke-virtual {{v1}}, {STAT}->f()B
@@ -156,11 +191,128 @@ def patch_cand_handler(text):
 .method public final baiduModTraceMove(Ljava/lang/String;)V
     .registers 3
 
+    invoke-virtual {{p0}}, {CAND}->baiduModMarkDrag()V
     iget-boolean v0, p0, {CAND}->baiduModMoveTraced:Z
     if-nez v0, :done
     const/4 v0, 0x1
     iput-boolean v0, p0, {CAND}->baiduModMoveTraced:Z
     invoke-virtual {{p0, p1}}, {CAND}->baiduModTrace(Ljava/lang/String;)V
+    :done
+    return-void
+.end method
+
+# The outer view must forward modern candidate MOVE events even when the
+# legacy l flag is false. Only a gesture captured by a candidate area qualifies.
+.method public final baiduModWantsMove()Z
+    .registers 2
+
+    iget-boolean v0, p0, {CAND}->baiduModDirectTouch:Z
+    if-eqz v0, :done
+    iget-boolean v0, p0, {ABS}->b0:Z
+    if-nez v0, :done
+    iget-boolean v0, p0, {ABS}->l:Z
+    :done
+    return v0
+.end method
+
+.method public final baiduModSuppressClick()Z
+    .registers 2
+
+    iget-boolean v0, p0, {CAND}->baiduModDirectTouch:Z
+    if-eqz v0, :done
+    iget-boolean v0, p0, {CAND}->baiduModDragged:Z
+    :done
+    return v0
+.end method
+
+.method public final baiduModMarkDrag()V
+    .registers 2
+
+    iget-boolean v0, p0, {CAND}->baiduModDirectTouch:Z
+    if-eqz v0, :done
+    iget-boolean v0, p0, {CAND}->baiduModDragged:Z
+    if-nez v0, :done
+    const/4 v0, 0x1
+    iput-boolean v0, p0, {CAND}->baiduModDragged:Z
+    invoke-virtual {{p0}}, {CAND}->baiduModClearClick()V
+    :done
+    return-void
+.end method
+
+# Clear both the candidate selection request bit and the pending sliding click.
+.method public final baiduModClearClick()V
+    .registers 4
+
+    const/4 v0, 0x0
+    invoke-virtual {{p0, v0, v0}}, {ABS}->u(ZZ)V
+    const/4 v1, -0x1
+    iput-short v1, p0, {ABS}->o:S
+    iget-byte v1, p0, {ABS}->u:B
+    and-int/lit8 v1, v1, -0x2
+    int-to-byte v1, v1
+    iput-byte v1, p0, {ABS}->u:B
+    iget-object v1, p0, {ABS}->a0:{MANAGER}
+    if-eqz v1, :done
+    iget-object v1, v1, {MANAGER}->c:{SLIDE}
+    if-eqz v1, :done
+    iput-object v0, v1, {SLIDE}->f:{CELL}
+    iget-object v2, v1, {SLIDE}->e:{CELL}
+    if-eqz v2, :done
+    invoke-interface {{v2, v0}}, {CELL}->g(Z)V
+    :done
+    return-void
+.end method
+
+# A short flick may deliver no MOVE to S2. On UP, compare the raw final
+# position with DOWN before the tap branch; CANCEL must never select a word.
+.method public final baiduModTrackRelease(Landroid/view/MotionEvent;)V
+    .registers 6
+
+    invoke-virtual {{p0}}, {CAND}->baiduModWantsMove()Z
+    move-result v0
+    if-eqz v0, :done
+    invoke-virtual {{p1}}, Landroid/view/MotionEvent;->getActionMasked()I
+    move-result v0
+    const/4 v1, 0x3
+    if-ne v0, v1, :check_up
+    invoke-virtual {{p0}}, {CAND}->baiduModMarkDrag()V
+    return-void
+    :check_up
+    const/4 v1, 0x1
+    if-ne v0, v1, :done
+    iget-boolean v0, p0, {CAND}->baiduModDragged:Z
+    if-nez v0, :dragged
+    iget v0, p0, {CAND}->baiduModTouchSlop:I
+    int-to-float v0, v0
+    invoke-virtual {{p1}}, Landroid/view/MotionEvent;->getX()F
+    move-result v1
+    iget v2, p0, {CAND}->baiduModDownX:F
+    sub-float/2addr v1, v2
+    invoke-static {{v1}}, Ljava/lang/Math;->abs(F)F
+    move-result v1
+    cmpl-float v1, v1, v0
+    if-gtz v1, :dragged
+    invoke-virtual {{p1}}, Landroid/view/MotionEvent;->getY()F
+    move-result v1
+    iget v2, p0, {CAND}->baiduModDownY:F
+    sub-float/2addr v1, v2
+    invoke-static {{v1}}, Ljava/lang/Math;->abs(F)F
+    move-result v1
+    cmpl-float v1, v1, v0
+    if-lez v1, :done
+    :dragged
+    invoke-virtual {{p0}}, {CAND}->baiduModMarkDrag()V
+    const/4 v0, 0x1
+    iget-boolean v1, p0, {ABS}->b0:Z
+    if-eqz v1, :legacy_drag
+    iget-object v1, p0, {ABS}->a0:{MANAGER}
+    if-eqz v1, :done
+    iget-object v1, v1, {MANAGER}->c:{SLIDE}
+    if-eqz v1, :done
+    iput-boolean v0, v1, {SLIDE}->o:Z
+    return-void
+    :legacy_drag
+    iput-boolean v0, p0, {ABS}->d:Z
     :done
     return-void
 .end method
@@ -176,7 +328,7 @@ def patch_cand_handler(text):
     iput v0, p0, {CAND}->baiduModTraceCount:I
     new-instance v0, Ljava/lang/StringBuilder;
     invoke-direct {{v0}}, Ljava/lang/StringBuilder;-><init>()V
-    const-string v1, "1.1.2 "
+    const-string v1, "1.1.3 "
     invoke-virtual {{v0, v1}}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
     invoke-virtual {{v0, p1}}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
     const-string v1, " enabled="
@@ -211,6 +363,30 @@ def patch_cand_handler(text):
     return-void
 .end method
 '''
+
+
+def patch_candidate_view(text):
+    # This outer branch used only the legacy scroll flag to route MOVE to S2.
+    text = replace_once(text, f'''    :cond_b1
+    iget-boolean v4, v3, {ABS}->l:Z''', f'''    :cond_b1
+    iget-boolean v4, v3, {ABS}->l:Z
+    if-nez v4, :baidu_mod_move_route
+    invoke-virtual {{v3}}, {CAND}->baiduModWantsMove()Z
+    move-result v4
+    :baidu_mod_move_route''')
+    # The view commits the u bit after S2 returns; independently guard this
+    # final selection dispatch after the inner implementation clears o/d.
+    text = prepend(text, 'public final r0()V', f'''    iget-object v0, p0, {VIEW}->F:{CAND}
+    if-eqz v0, :baidu_mod_select_original
+    invoke-virtual {{v0}}, {CAND}->baiduModSuppressClick()Z
+    move-result v1
+    if-eqz v1, :baidu_mod_select_original
+    invoke-virtual {{v0}}, {CAND}->baiduModClearClick()V
+    return-void
+    :baidu_mod_select_original''')
+    start = text.index('.method public final onTouchEvent(')
+    end = text.index('.end method', start)
+    return text[:start] + re.sub(r'(?m)^    goto (?=:)', '    goto/16 ', text[start:end]) + text[end:]
 
 
 def patch_sliding_view(text):
@@ -295,6 +471,7 @@ def patch_sliding_view(text):
 PATCHES = {
     'com/baidu/input/ime/cand/CandHandler.smali': ('classes3_smali.zip', patch_cand_handler),
     'com/baidu/input/panel/render/cand/slide/SlidingView.smali': ('classes4_smali.zip', patch_sliding_view),
+    'com/baidu/input/ime/cand/CandidateView.smali': ('classes3_smali.zip', patch_candidate_view),
 }
 
 

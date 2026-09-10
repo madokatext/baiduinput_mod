@@ -163,12 +163,17 @@
       "path": "com/baidu/input/ime/cand/CandHandler.smali",
       "originSha256": "aa0f55b27d59dbce63633f578caf074b26b611b5a74c3d4cb881882881a24969",
       "modSha256": "aa0f55b27d59dbce63633f578caf074b26b611b5a74c3d4cb881882881a24969",
-      "payloadSha256": "de4a55764536810ec624f2c03a66dbb5ec4aad09d13c8161d9d46533addda14a",
+      "payloadSha256": "1730ef7bdc7c44520ee5d4fef5af701716a79c5e78977ddadf0183230c3afc3d",
       "feature": "nine-key-top-candidate-direct-scroll",
       "methods": [
         "public final S2(Landroid/view/MotionEvent;)Z",
         "public final baiduModBeginTouch(Landroid/view/MotionEvent;)V",
         "public final baiduModTraceMove(Ljava/lang/String;)V",
+        "public final baiduModWantsMove()Z",
+        "public final baiduModSuppressClick()Z",
+        "public final baiduModMarkDrag()V",
+        "public final baiduModClearClick()V",
+        "public final baiduModTrackRelease(Landroid/view/MotionEvent;)V",
         "public final baiduModTrace(Ljava/lang/String;)V"
       ]
     },
@@ -184,6 +189,18 @@
         "public final c(I)V",
         "public final baiduModStopScroll()V",
         "public final baiduModMove(I)V"
+      ]
+    },
+    {
+      "name": "com.baidu.input.ime.cand.CandidateView",
+      "path": "com/baidu/input/ime/cand/CandidateView.smali",
+      "originSha256": "36a2c6aa671c8e253bb090a0ffe714b81241e1e2c6f209a01292a5917b67b8d8",
+      "modSha256": "36a2c6aa671c8e253bb090a0ffe714b81241e1e2c6f209a01292a5917b67b8d8",
+      "payloadSha256": "74c0f938278422274214d4d1bd807fa3d791228c578f7ae3ef4100dcda5a6948",
+      "feature": "nine-key-top-candidate-direct-scroll",
+      "methods": [
+        "public final onTouchEvent(Landroid/view/MotionEvent;)Z",
+        "public final r0()V"
       ]
     }
   ],

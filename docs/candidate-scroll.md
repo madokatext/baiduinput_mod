@@ -1,6 +1,17 @@
 # 九键模式的顶部汉字候选栏跟手滚动
 
-1.1.2 仅修改九键拼音模式下的顶部横向汉字候选栏。左侧拼音列表恢复原版：删除先前误加的 `SubList`、`MainSubListWrapper`、`KeyMap` 三个覆盖类及其 profile 记录，应用会从原 APK 加载这些类。
+1.1.3 仅修改九键拼音模式下的顶部横向汉字候选栏。左侧拼音列表保持原版：先前误加的 `SubList`、`MainSubListWrapper`、`KeyMap` 三个覆盖类及其 profile 记录已在 1.1.2 删除，应用从原 APK 加载这些类。
+
+## 1.1.3：拖动误识别为点击
+
+用户反馈拖动候选词容易误选。源码中的两处流程会导致这个问题：
+
+- 新版 `SlidingView` 的松手清理会重置 `o`（正在拖动）标记，随后 `S2` 继续旧版处理与公共 `b2(II)` 点击分支。`SoftCand.b2` 只要看到仍有效的候选编号 `o`，就会设置 `u` 的选词位，`CandidateView.r0()` 随后执行选词。
+- `CandidateView.onTouchEvent` 的一条移动分支仅根据旧版的 `l` 标记决定是否调用 `S2`；新版由 `b0` 标记捕获候选区域，却可能进入 `D0`，使内层无法识别这次拖动。
+
+修复在 `CandHandler` 中独立保存 `baiduModDragged`，只在下一次 DOWN 时重置。首次实际拖动便取消按压状态、清空待点击候选对象并清除选词位；到达边界时即使内容不能继续移动，也保持拖动身份。`S2` 公共点击分支之前消费已拖动手势，`CandidateView.r0` 在最终选词入口再次拦截并清理，防止中间清理代码重置内层状态后重新选词。
+
+外层移动分支同时识别九键模式下的新版 `b0` 捕获状态，完整转发 MOVE。另保存 DOWN 坐标和系统 `getScaledTouchSlop()`；UP 到达时若位移已超过阈值，即使没有 MOVE 到达 `S2`，也进入拖动结束分支并应用最后位移。捕获的 CANCEL 清除点击资格。正常未拖动的点击继续原有选择流程。以上是源码修复依据，本次没有新增设备日志或运行验证。
 
 ## 最新日志与根因
 
@@ -31,8 +42,8 @@
 
 ## 诊断与构建
 
-`BaiduInputModScroll` 最多记录每个处理器、每次模式切换后的十二条日志；每次手势只记录首次移动。日志包含版本 `1.1.2`、`down/top`、`move/sliding` / `move/legacy`、`release/sliding` / `release/legacy`、启用状态、布局和偏移，不包含输入内容。
+`BaiduInputModScroll` 最多记录每个处理器、每次模式切换后的十二条日志；每次手势只记录首次移动。日志包含版本 `1.1.3`、`down/top`、`move/sliding` / `move/legacy`、`release/sliding` / `release/legacy`、启用状态、布局和偏移，不包含输入内容。
 
-生成器以所提供 mod 材料中的 `classes3_smali.zip/CandHandler` 和 `classes4_smali.zip/SlidingView` 为基底。完成全部源码变换后写入两个覆盖类，并移除旧的左侧补丁。`profile.json` 记录原版、mod 基底、最终 payload 的 SHA-256 及修改方法；当前共 17 个原有差分类加 2 个顶部候选补丁类。
+生成器以所提供 mod 材料中的 `classes3_smali.zip` 内的 `CandHandler`、`CandidateView` 和 `classes4_smali.zip` 内的 `SlidingView` 为基底。完成全部源码变换后写入三个顶部覆盖类，并移除旧的左侧补丁。`profile.json` 记录原版、mod 基底、最终 payload 的 SHA-256 及修改方法；当前共 17 个原有差分类加 3 个顶部候选补丁类。`CandidateView` 只改变顶部移动转发和顶部最终选词入口，侧栏分支保留原实现。
 
 已提交的 smali 可由现有 GitHub Actions `:app:assembleRelease` 直接编译并打包，不需要 CI 另取原 APK 或 ZIP。按用户要求不运行测试、本地 Gradle 或 smali 汇编，推送后只确认工作流启动，不等待编译结束。设备端效果和本次构建结果尚未验证。

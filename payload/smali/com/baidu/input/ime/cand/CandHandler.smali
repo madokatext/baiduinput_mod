@@ -25,6 +25,14 @@
 
 .field private baiduModMoveTraced:Z
 
+.field private baiduModDragged:Z
+
+.field private baiduModDownX:F
+
+.field private baiduModDownY:F
+
+.field private baiduModTouchSlop:I
+
 .field public A1:Lcom/baidu/input/ime/cand/CandHandler$CandHandlerInner;
 
 .field public final B1:[I
@@ -8840,6 +8848,11 @@
     .line 1697
     :goto_6a0
     iput v8, v0, Lcom/baidu/input/panel/render/cand/AbsCandHandler;->f:I
+    invoke-virtual {v0}, Lcom/baidu/input/ime/cand/CandHandler;->baiduModSuppressClick()Z
+    move-result v4
+    if-eqz v4, :baidu_mod_click_original
+    const/4 v1, 0x1
+    :baidu_mod_click_original
 
     .line 1699
     if-eqz v1, :cond_6a6
@@ -20879,9 +20892,25 @@
 
     invoke-virtual {p1}, Landroid/view/MotionEvent;->getActionMasked()I
     move-result v0
-    if-nez v0, :done
+    if-eqz v0, :begin
+    invoke-virtual {p0, p1}, Lcom/baidu/input/ime/cand/CandHandler;->baiduModTrackRelease(Landroid/view/MotionEvent;)V
+    return-void
+    :begin
     const/4 v0, 0x0
+    iput-boolean v0, p0, Lcom/baidu/input/ime/cand/CandHandler;->baiduModDragged:Z
     iput-boolean v0, p0, Lcom/baidu/input/ime/cand/CandHandler;->baiduModMoveTraced:Z
+    invoke-virtual {p1}, Landroid/view/MotionEvent;->getX()F
+    move-result v1
+    iput v1, p0, Lcom/baidu/input/ime/cand/CandHandler;->baiduModDownX:F
+    invoke-virtual {p1}, Landroid/view/MotionEvent;->getY()F
+    move-result v1
+    iput v1, p0, Lcom/baidu/input/ime/cand/CandHandler;->baiduModDownY:F
+    sget-object v1, Lcom/baidu/input/pub/ImeBaseGlobal;->m:Landroid/app/Application;
+    invoke-static {v1}, Landroid/view/ViewConfiguration;->get(Landroid/content/Context;)Landroid/view/ViewConfiguration;
+    move-result-object v1
+    invoke-virtual {v1}, Landroid/view/ViewConfiguration;->getScaledTouchSlop()I
+    move-result v1
+    iput v1, p0, Lcom/baidu/input/ime/cand/CandHandler;->baiduModTouchSlop:I
     sget-object v1, Lcom/baidu/input/ime/keymap/KeyMap;->c0:Lcom/baidu/input/ime/InputStatMac;
     if-eqz v1, :configured
     invoke-virtual {v1}, Lcom/baidu/input/ime/InputStatMac;->f()B
@@ -20926,11 +20955,128 @@
 .method public final baiduModTraceMove(Ljava/lang/String;)V
     .registers 3
 
+    invoke-virtual {p0}, Lcom/baidu/input/ime/cand/CandHandler;->baiduModMarkDrag()V
     iget-boolean v0, p0, Lcom/baidu/input/ime/cand/CandHandler;->baiduModMoveTraced:Z
     if-nez v0, :done
     const/4 v0, 0x1
     iput-boolean v0, p0, Lcom/baidu/input/ime/cand/CandHandler;->baiduModMoveTraced:Z
     invoke-virtual {p0, p1}, Lcom/baidu/input/ime/cand/CandHandler;->baiduModTrace(Ljava/lang/String;)V
+    :done
+    return-void
+.end method
+
+# The outer view must forward modern candidate MOVE events even when the
+# legacy l flag is false. Only a gesture captured by a candidate area qualifies.
+.method public final baiduModWantsMove()Z
+    .registers 2
+
+    iget-boolean v0, p0, Lcom/baidu/input/ime/cand/CandHandler;->baiduModDirectTouch:Z
+    if-eqz v0, :done
+    iget-boolean v0, p0, Lcom/baidu/input/panel/render/cand/AbsCandHandler;->b0:Z
+    if-nez v0, :done
+    iget-boolean v0, p0, Lcom/baidu/input/panel/render/cand/AbsCandHandler;->l:Z
+    :done
+    return v0
+.end method
+
+.method public final baiduModSuppressClick()Z
+    .registers 2
+
+    iget-boolean v0, p0, Lcom/baidu/input/ime/cand/CandHandler;->baiduModDirectTouch:Z
+    if-eqz v0, :done
+    iget-boolean v0, p0, Lcom/baidu/input/ime/cand/CandHandler;->baiduModDragged:Z
+    :done
+    return v0
+.end method
+
+.method public final baiduModMarkDrag()V
+    .registers 2
+
+    iget-boolean v0, p0, Lcom/baidu/input/ime/cand/CandHandler;->baiduModDirectTouch:Z
+    if-eqz v0, :done
+    iget-boolean v0, p0, Lcom/baidu/input/ime/cand/CandHandler;->baiduModDragged:Z
+    if-nez v0, :done
+    const/4 v0, 0x1
+    iput-boolean v0, p0, Lcom/baidu/input/ime/cand/CandHandler;->baiduModDragged:Z
+    invoke-virtual {p0}, Lcom/baidu/input/ime/cand/CandHandler;->baiduModClearClick()V
+    :done
+    return-void
+.end method
+
+# Clear both the candidate selection request bit and the pending sliding click.
+.method public final baiduModClearClick()V
+    .registers 4
+
+    const/4 v0, 0x0
+    invoke-virtual {p0, v0, v0}, Lcom/baidu/input/panel/render/cand/AbsCandHandler;->u(ZZ)V
+    const/4 v1, -0x1
+    iput-short v1, p0, Lcom/baidu/input/panel/render/cand/AbsCandHandler;->o:S
+    iget-byte v1, p0, Lcom/baidu/input/panel/render/cand/AbsCandHandler;->u:B
+    and-int/lit8 v1, v1, -0x2
+    int-to-byte v1, v1
+    iput-byte v1, p0, Lcom/baidu/input/panel/render/cand/AbsCandHandler;->u:B
+    iget-object v1, p0, Lcom/baidu/input/panel/render/cand/AbsCandHandler;->a0:Lcom/baidu/input/panel/render/cand/slide/SlidingVisibleWindowManager;
+    if-eqz v1, :done
+    iget-object v1, v1, Lcom/baidu/input/panel/render/cand/slide/SlidingVisibleWindowManager;->c:Lcom/baidu/input/panel/render/cand/slide/SlidingView;
+    if-eqz v1, :done
+    iput-object v0, v1, Lcom/baidu/input/panel/render/cand/slide/SlidingView;->f:Lcom/baidu/input/panel/render/cand/slide/ISlidingCell;
+    iget-object v2, v1, Lcom/baidu/input/panel/render/cand/slide/SlidingView;->e:Lcom/baidu/input/panel/render/cand/slide/ISlidingCell;
+    if-eqz v2, :done
+    invoke-interface {v2, v0}, Lcom/baidu/input/panel/render/cand/slide/ISlidingCell;->g(Z)V
+    :done
+    return-void
+.end method
+
+# A short flick may deliver no MOVE to S2. On UP, compare the raw final
+# position with DOWN before the tap branch; CANCEL must never select a word.
+.method public final baiduModTrackRelease(Landroid/view/MotionEvent;)V
+    .registers 6
+
+    invoke-virtual {p0}, Lcom/baidu/input/ime/cand/CandHandler;->baiduModWantsMove()Z
+    move-result v0
+    if-eqz v0, :done
+    invoke-virtual {p1}, Landroid/view/MotionEvent;->getActionMasked()I
+    move-result v0
+    const/4 v1, 0x3
+    if-ne v0, v1, :check_up
+    invoke-virtual {p0}, Lcom/baidu/input/ime/cand/CandHandler;->baiduModMarkDrag()V
+    return-void
+    :check_up
+    const/4 v1, 0x1
+    if-ne v0, v1, :done
+    iget-boolean v0, p0, Lcom/baidu/input/ime/cand/CandHandler;->baiduModDragged:Z
+    if-nez v0, :dragged
+    iget v0, p0, Lcom/baidu/input/ime/cand/CandHandler;->baiduModTouchSlop:I
+    int-to-float v0, v0
+    invoke-virtual {p1}, Landroid/view/MotionEvent;->getX()F
+    move-result v1
+    iget v2, p0, Lcom/baidu/input/ime/cand/CandHandler;->baiduModDownX:F
+    sub-float/2addr v1, v2
+    invoke-static {v1}, Ljava/lang/Math;->abs(F)F
+    move-result v1
+    cmpl-float v1, v1, v0
+    if-gtz v1, :dragged
+    invoke-virtual {p1}, Landroid/view/MotionEvent;->getY()F
+    move-result v1
+    iget v2, p0, Lcom/baidu/input/ime/cand/CandHandler;->baiduModDownY:F
+    sub-float/2addr v1, v2
+    invoke-static {v1}, Ljava/lang/Math;->abs(F)F
+    move-result v1
+    cmpl-float v1, v1, v0
+    if-lez v1, :done
+    :dragged
+    invoke-virtual {p0}, Lcom/baidu/input/ime/cand/CandHandler;->baiduModMarkDrag()V
+    const/4 v0, 0x1
+    iget-boolean v1, p0, Lcom/baidu/input/panel/render/cand/AbsCandHandler;->b0:Z
+    if-eqz v1, :legacy_drag
+    iget-object v1, p0, Lcom/baidu/input/panel/render/cand/AbsCandHandler;->a0:Lcom/baidu/input/panel/render/cand/slide/SlidingVisibleWindowManager;
+    if-eqz v1, :done
+    iget-object v1, v1, Lcom/baidu/input/panel/render/cand/slide/SlidingVisibleWindowManager;->c:Lcom/baidu/input/panel/render/cand/slide/SlidingView;
+    if-eqz v1, :done
+    iput-boolean v0, v1, Lcom/baidu/input/panel/render/cand/slide/SlidingView;->o:Z
+    return-void
+    :legacy_drag
+    iput-boolean v0, p0, Lcom/baidu/input/panel/render/cand/AbsCandHandler;->d:Z
     :done
     return-void
 .end method
@@ -20946,7 +21092,7 @@
     iput v0, p0, Lcom/baidu/input/ime/cand/CandHandler;->baiduModTraceCount:I
     new-instance v0, Ljava/lang/StringBuilder;
     invoke-direct {v0}, Ljava/lang/StringBuilder;-><init>()V
-    const-string v1, "1.1.2 "
+    const-string v1, "1.1.3 "
     invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
     invoke-virtual {v0, p1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
     const-string v1, " enabled="

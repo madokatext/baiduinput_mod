@@ -4,7 +4,9 @@
 
 实现覆盖这组材料中的 17 个功能类与资源表差异。补充提供的 origin APK 为 **13.3.6.52（versionCode 1149）**，包名、资源表指纹及 17 个目标类定义已通过静态读取确认。**没有运行设备测试，不能将源码覆盖视为已验证的运行时完全一致。** 尚无完整 mod APK，无法比较其余 DEX、Manifest、assets 和 native 库是否另有差异。
 
-**1.1.2 修复九键模式下顶部横向汉字候选栏的弹簧效果。** 同时处理 `CandHandler.S2` 中的新旧滚动路径：位移直接跟随手指、首个移动事件也生效、到达内容边界后停止，松手不再回弹、对齐候选项或惯性滑动。保留候选点击选择与原有触摸清理流程。新功能覆盖 `CandHandler` 和 `SlidingView`，当前共加载 **19 个类**。实现依据及最新日志分析见 [`docs/candidate-scroll.md`](docs/candidate-scroll.md)。
+**1.1.3 修复顶部横向汉字候选栏拖动后误选词。** 已识别的拖动状态保持到下一次按下，阻止松手进入点击处理并清除残留选词请求；外层 `CandidateView` 补齐新版候选栏的移动事件转发，并在最终选词入口再次拦截拖动。快速划动即使没有移动事件到达处理器，松手时超过系统触摸阈值也按拖动结束处理。新功能覆盖 `CandHandler`、`SlidingView` 和 `CandidateView`，当前共加载 **20 个类**。实现依据见 [`docs/candidate-scroll.md`](docs/candidate-scroll.md)。
+
+保留 1.1.2 的九键顶部跟手行为：位移直接跟随手指，首个移动事件生效，到达内容边界后停止，松手不再回弹、对齐候选项或惯性滑动。
 
 左侧拼音列表恢复原版行为：移除 1.1.0/1.1.1 错误添加到 `SubList`、`MainSubListWrapper` 和 `KeyMap` 的三个覆盖类。`BaiduInputModScroll` 诊断日志也改为记录顶部候选栏的实际触摸路径。
 
@@ -25,7 +27,7 @@
 | 资源文案 | 同步四条剪贴板条数、字数说明；资源表其他编码和排布差异一并保留 |
 | 九键模式的顶部汉字候选栏（新增） | 直接跟随触摸位移，边界停止，取消拖动阻尼、回弹、松手对齐和惯性 |
 
-原有 17 个差分类与新增 2 个滚动补丁类的路径、方法和来源 SHA-256 见 [`profile.json`](app/src/main/assets/parity/profile.json)。新增功能使用 `feature` 标识，并记录修改后的 `payloadSha256`。资源值对照见 [`docs/resource-diff.json`](docs/resource-diff.json)。`formatOnly` 中列出的类只是静态零值初始化的反编译写法变化，语义相同。
+原有 17 个差分类与新增 3 个顶部候选补丁类的路径、方法和来源 SHA-256 见 [`profile.json`](app/src/main/assets/parity/profile.json)。新增功能使用 `feature` 标识，并记录修改后的 `payloadSha256`。资源值对照见 [`docs/resource-diff.json`](docs/resource-diff.json)。`formatOnly` 中列出的类只是静态零值初始化的反编译写法变化，语义相同。
 
 `MultiDexApplication` 的唯一改动是将父类换成 MT 重签名辅助类 `bin.mt.signature.KillerApplication656`。模块继续运行原签名 origin，不移植这项安装包重签名处理；提供的四个 ZIP 中也没有新增这个辅助类。
 
@@ -35,7 +37,7 @@
 2. 安装 Actions 产出的模块 APK。
 3. 在 LSPosed 中启用“百度输入法 Mod 对齐”，勾选 `com.baidu.input`。
 4. 强行停止百度输入法的所有进程后重新打开，或重启设备。
-5. LSPosed 日志分别显示 `DEX overlay installed for 19 mod classes` 和 `Resource overlay attached on main thread`，表示 DEX 搜索路径已更新、资源表已实际附加；前一条日志仅代表 DEX 安装步骤，不能单独证明资源生效或所有功能一致。顶部候选栏会另外输出带 `1.1.2`、`down/top`、`move/sliding` 或 `move/legacy` 的 `BaiduInputModScroll` 日志。模块说明页不检测激活状态。
+5. LSPosed 日志分别显示 `DEX overlay installed for 20 mod classes` 和 `Resource overlay attached on main thread`，表示 DEX 搜索路径已更新、资源表已实际附加；前一条日志仅代表 DEX 安装步骤，不能单独证明资源生效或所有功能一致。顶部候选栏会另外输出带 `1.1.3`、`down/top`、`move/sliding` 或 `move/legacy` 的 `BaiduInputModScroll` 日志。模块说明页不检测激活状态。
 
 若日志显示版本指纹不匹配、DEX 安装失败或资源附加失败，该次运行没有实现完整对齐。原有云端服务和同步能力仍由 origin/mod 共用的服务端决定。
 
@@ -49,7 +51,7 @@
 gradle --no-daemon --console=plain :app:assembleRelease
 ```
 
-`assemblePayload` 会先用 Maven Central 的 `org.smali:smali:2.5.2` 将 `payload/smali` 中的全部 19 个类汇编为资产 DEX，再编译模块。下载名为 `baiduinput-mod-api100-<commit>` 的 artifact，解压得到 `app-release.apk`。
+`assemblePayload` 会先用 Maven Central 的 `org.smali:smali:2.5.2` 将 `payload/smali` 中的全部 20 个类汇编为资产 DEX，再编译模块。下载名为 `baiduinput-mod-api100-<commit>` 的 artifact，解压得到 `app-release.apk`。
 
 产物使用 CI debug keystore 签名，可以直接安装，不要求仓库配置 secrets。该密钥由 Actions cache 保留；缓存被清除后可能产生新密钥，此时需卸载旧模块后再安装。正式长期分发可另行改为仓库 secrets 管理的固定发布密钥。
 
