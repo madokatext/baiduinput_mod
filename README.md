@@ -1,0 +1,69 @@
+# 百度输入法 Mod 对齐模块
+
+面向 **Android 15（SDK 35）和 LSPosed modern API 100**，作用域固定为 **`com.baidu.input`**。模块依据本次提供的 `origin`、`mod` 四组 smali ZIP 和 `resources.arsc` 构建。
+
+实现覆盖这组材料中的 17 个功能类与资源表差异。**尚未进行编译验证或设备测试，不能将源码覆盖视为已验证的运行时完全一致。** 没有完整 APK、Manifest、assets 和 native 库的对照，无法判断所提供材料之外是否另有差异。
+
+## 已覆盖的差异
+
+| 功能 | mod 中的改动 |
+| --- | --- |
+| 剪贴板容量 | 将相关配置、清理阈值、查询限制和计数显示中的 300 调整为 100000000 |
+| 剪贴板文本 | 将相关处理、同步判断、编辑过滤器和字数提示中的 7000 调整为 100000000 |
+| 常用语编辑 | 将相关输入过滤器与字数判断中的 3000 调整为 100000000 |
+| 编辑控制菜单 | 保留 mod 对相应模式菜单数组顺序的调整 |
+| 灵感面板 | 隐藏 ID 为 2 的标签；调整 ID 为 0、1 的标签宽度、间距；保留“我的”标题空格 |
+| 颜色及透明度 | 移植 SkinColor、剪贴板面板、底栏及主标签调色代码的修改 |
+| 资源文案 | 同步四条剪贴板条数、字数说明；资源表其他编码和排布差异一并保留 |
+
+17 个类的路径、方法与来源 SHA-256 见 [`profile.json`](app/src/main/assets/parity/profile.json)。资源值对照见 [`docs/resource-diff.json`](docs/resource-diff.json)。78 个类只是静态零值初始化的反编译写法变化，语义相同。
+
+`MultiDexApplication` 的唯一改动是将父类换成 MT 重签名辅助类 `bin.mt.signature.KillerApplication656`。模块继续运行原签名 origin，不移植这项安装包重签名处理；提供的四个 ZIP 中也没有新增这个辅助类。
+
+## 安装
+
+1. 在 Android 15 上安装能提供 modern API 100 的 LSPosed 和对应 origin 百度输入法。
+2. 安装 Actions 产出的模块 APK。
+3. 在 LSPosed 中启用“百度输入法 Mod 对齐”，勾选 `com.baidu.input`。
+4. 强行停止百度输入法的所有进程后重新打开，或重启设备。
+5. LSPosed 日志显示 `Installed 17 mod classes and exact resource-table patch` 表示补丁已安装；模块说明页不检测激活状态。
+
+若日志显示版本指纹不匹配、目标类已提前加载或资源附加失败，该次运行没有实现完整对齐。原有云端服务和同步能力仍由 origin/mod 共用的服务端决定。
+
+## GitHub Actions 编译 APK
+
+推送到 `main` 自动触发 [`Build APK`](.github/workflows/build-apk.yml)，也可以在 Actions 页面选择 **Run workflow**。
+
+流水线使用 JDK 17、Gradle 8.9、Android SDK 35、AGP 8.7.3，执行：
+
+```sh
+gradle --no-daemon --console=plain :app:assembleRelease
+```
+
+`assemblePayload` 会先用 Maven Central 的 `org.smali:smali:2.5.2` 将 17 个类汇编为资产 DEX，再编译模块。下载名为 `baiduinput-mod-api100-<commit>` 的 artifact，解压得到 `app-release.apk`。
+
+产物使用 CI debug keystore 签名，可以直接安装，不要求仓库配置 secrets。该密钥由 Actions cache 保留；缓存被清除后可能产生新密钥，此时需卸载旧模块后再安装。正式长期分发可另行改为仓库 secrets 管理的固定发布密钥。
+
+工作流不包含测试任务。本次提交没有在本地执行 Gradle、smali 汇编、单元测试或设备测试，也不等待 Actions 编译结果。
+
+## 实现方式
+
+- **API 100**：使用 `XposedModule(XposedInterface, ModuleLoadedParam)`、API 100 注解回调及 `META-INF/xposed` 元数据。固定的官方接口源码通过 `compileOnly` 引用，避免误拉 API 101/102 或把接口打进 APK。
+- **DEX**：在目标包的 `onPackageLoaded` 中，将仅含 17 个改动类的内存 DEX 前置到应用的 `dexElements`。类仍由 origin 的应用 ClassLoader 定义，以保留私有成员、包可见成员和协程内部类之间的访问关系。保留 mod 方法的完整实现，包括分支、构造函数和协程逻辑。
+- **资源**：读取已安装 origin APK 的资源表，按 COPY/ADD 差分重建 mod 表；输入和输出都校验 SHA-256。借助 Android `ResourcesLoader`、`ResourcesProvider` 和内存文件加载；XML、TypedArray、主题及配置资源均通过 Android 资源解析路径获取值。表中引用的文件从已安装 APK 或 split APK 提供。
+- **兼容范围**：资源指纹固定到本次 origin；DEX 前置依赖 Android 15 的 `BaseDexClassLoader.pathList.dexElements`。其他模块的提前类加载或修改 class loader 可能影响注入。检测到目标类已加载时拒绝应用补丁并记录原因。
+- **作用域**：只处理 `com.baidu.input`，覆盖该包加载的各进程；不会更改安装 APK 或应用签名。补丁在进程内生效，禁用模块并重启输入法后恢复 origin 代码与资源；使用期间产生的输入法数据仍然保留。
+
+本项目的 API 100 源码固定在官方 [`libxposed/api` 的 `55efdf9d159195261d7326e9e125965a90025a12`](https://github.com/libxposed/api/tree/55efdf9d159195261d7326e9e125965a90025a12)，不是早期 `100` tag 的 `XposedContext` 构造接口。资源加载接口依据 [Android 15 ResourcesProvider 实现](https://github.com/aosp-mirror/platform_frameworks_base/blob/android-15.0.0_r1/core/java/android/content/res/loader/ResourcesProvider.java)。
+
+## 从新材料导入
+
+在安装 Python 3 的电脑上，使用空的新工作副本或先移除旧的 `payload/smali` 后执行：
+
+```sh
+python tools/import_payload.py --origin /path/to/origin --mod /path/to/mod
+```
+
+这是源材料差分导入工具，不运行测试或编译。它会重新生成 smali 补丁、资源差分和指纹清单。更换目标版本后，需要重新确认差异含义与设备兼容性。
+
+第三方来源与许可说明见 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。
