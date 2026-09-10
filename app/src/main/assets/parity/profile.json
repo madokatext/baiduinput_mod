@@ -163,7 +163,7 @@
       "path": "com/baidu/input/ime/SubList.smali",
       "originSha256": "d82a7303d767c4a78c30a8b813d2d5484e76da345eccebc9a586dd9241c85f0e",
       "modSha256": "d82a7303d767c4a78c30a8b813d2d5484e76da345eccebc9a586dd9241c85f0e",
-      "payloadSha256": "013f3662b47396aac5131329bda22743420534f3c6f94255d55a14ea86450240",
+      "payloadSha256": "b0fa61312198bc0906d48981a42fa509a9d17c491a2f86206fd9909bb8fcc36c",
       "feature": "nine-key-pinyin-direct-scroll",
       "methods": [
         "public final C(J)V",
@@ -172,7 +172,8 @@
         "public final z(IIII)V",
         "public final baiduModConfigureTouch(Lcom/baidu/input/ime/InputStatMac;)V",
         "public final baiduModClampOffset(I)I",
-        "public final baiduModStopMotion()V"
+        "public final baiduModStopMotion()V",
+        "public final baiduModTrace(Ljava/lang/String;)V"
       ]
     },
     {
@@ -188,6 +189,18 @@
         "public final b(IIZ)V",
         "public final computeScroll()V",
         "public final d(I)I"
+      ]
+    },
+    {
+      "name": "com.baidu.input.ime.keymap.KeyMap",
+      "path": "com/baidu/input/ime/keymap/KeyMap.smali",
+      "originSha256": "ffd750b60a8cbdcb369e362d89e9e770459a88e486dc75518bef9a5c1e55b0a1",
+      "modSha256": "ffd750b60a8cbdcb369e362d89e9e770459a88e486dc75518bef9a5c1e55b0a1",
+      "payloadSha256": "5bf0ef69648bad3c5dc67bdf93c535d65045e7fd0254832362a9caacb369d212",
+      "feature": "nine-key-pinyin-direct-scroll",
+      "methods": [
+        "public final S0(Lcom/baidu/input/ime/TouchPoint;I)V",
+        "public b([Ljava/lang/String;)V"
       ]
     }
   ],

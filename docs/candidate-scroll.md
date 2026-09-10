@@ -2,6 +2,19 @@
 
 1.1.0 针对提供的百度输入法 13.3.6.52，在原有差分模块上增加候选列表滚动补丁。
 
+## 1.1.1：最新日志与修复
+
+用户提供的 `Log_2026-9-10_10-04-37.txt` 中，主进程 20145 在 10:04:18.020 记录 `DEX overlay installed for 19 mod classes`，在 10:04:18.023 记录 `Resource overlay attached on main thread`。日志未出现 `SubList` 的校验错误、缺失方法/字段或崩溃，但也没有任何跟手分支执行记录，因此只能确认模块安装步骤完成，不能从日志认定跟手开关已启用。
+
+沿触摸和候选更新链路检查发现两个源码遗漏：
+
+- 1.1.0 仅在 `SubList.g(InputStatMac, String[])` 内设置开关。`KeyMap.b(String[])` 的部分分支直接调用 `SubList.A/D`，绕过 `g`，开关可能仍为默认值或旧模式值。1.1.1 在 `KeyMap.b` 入口统一更新，并在 `SubList.l(II)` 每次按下时从 `KeyMap.c0` 重新读取当前输入状态；空状态关闭功能。
+- `KeyMap.S0(TouchPoint, int)` 每次移动都判断相对于最初按下点的距离，进入 `q0` 阈值内便不调用 `SubList.z`，也不更新上一个触摸点。1.1.1 保留首次点击/拖动区分，九键跟手模式下 `Z` 已标记拖动后持续传递移动，不再返回这个死区。
+
+这两处遗漏由源码确认；现有日志不足以确定用户本次操作具体走了哪条分支，也无法据此确认设备端修复效果。
+
+新增 `BaiduInputModScroll` 日志，每个列表实例在每种开关状态下最多输出六条，标记版本 `1.1.1`、`down` / 首次 `move` / `up/cancel`、实现类、`enabled`、输入类型/布局/模式、偏移和是否可滚动。正常九键拼音模式应为 `enabled=true`、`inputType/layout/mode=33/1/0`。日志不记录输入内容，可区分 DEX 安装完成、模式开关启用与实际拖动入口执行。
+
 ## 行为
 
 - 拖动位移直接应用于列表，不再对边界处的位移乘以阻尼系数。
@@ -18,7 +31,7 @@
 
 - `SubList.z(IIII)` 根据列表方向计算相邻触摸点的位移。补丁保留原方法的 `Z` 拖动标记及前后坐标，只在写入位置后限制范围并同步 `j/k`。
 - `SubList.C(J)` 原本按越界距离的八分之一计算回弹步长，并设置惯性与刷新状态。九键拼音分支改为停止运动，保留原有松手标记 `w0`。
-- `SubList.l(II)` 开始触摸时清理动画状态，随后继续原有命中检测。
+- `SubList.l(II)` 每次开始触摸时刷新九键模式开关并清理动画状态，随后继续原有命中检测。
 - `MainSubListWrapper.d(I)` 原本在越界时把位移乘以 `0.25`，并累积原始偏移 `k`。补丁按 `j` 计算实际有效位移，同步受限的 `k`，避免越界累计。
 - `MainSubListWrapper.G()` 原本启动 500 ms 回弹；`b(IIZ)` 原本计算速度并启动惯性滚动。九键拼音下两个入口均改为停止。
 - `MainSubListWrapper.computeScroll()` 在九键拼音下不再从 Scroller 覆写触摸位置；`a()` 停止 Scroller 时同时清理该模式的刷新状态。
@@ -27,7 +40,7 @@
 
 ## 来源与构建
 
-生成器读取用户提供的 `classes3_smali.zip` 中的 `SubList` 和 `classes4_smali.zip` 中的 `MainSubListWrapper`，以 mod 材料为基底应用明确的方法级修改。源码结构不匹配时停止生成，避免静默漏掉补丁。`profile.json` 保留原版、mod 基底与最终补丁各自的 SHA-256，并列出修改与新增的方法。
+生成器读取用户提供的 `classes3_smali.zip` 中的 `SubList`、`KeyMap` 和 `classes4_smali.zip` 中的 `MainSubListWrapper`，以 mod 材料为基底应用明确的方法级修改。源码结构不匹配时停止生成，避免静默漏掉补丁。`profile.json` 保留原版、mod 基底与最终补丁各自的 SHA-256，并列出修改与新增的方法。
 
 生成后的完整 smali 已提交到 `payload/smali`。现有 GitHub Actions 的 `:app:assembleRelease` 会自动汇编并包含这些类，构建不需要额外取得原 APK 或 smali ZIP。重新导入材料时也会应用这项功能。
 

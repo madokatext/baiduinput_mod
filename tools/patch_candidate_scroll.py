@@ -10,6 +10,8 @@ import zipfile
 
 SUB = 'Lcom/baidu/input/ime/SubList;'
 MAIN = 'Lcom/baidu/input/optimization/MainSubListWrapper;'
+KEY = 'Lcom/baidu/input/ime/keymap/KeyMap;'
+STAT = 'Lcom/baidu/input/ime/InputStatMac;'
 FEATURE = 'nine-key-pinyin-direct-scroll'
 
 
@@ -29,10 +31,19 @@ def prepend(text, signature, instructions):
 
 def patch_sublist(text):
     text = replace_once(text, '# instance fields\n',
-                        '# instance fields\n.field public baiduModDirectTouch:Z\n\n')
+                        '# instance fields\n.field public baiduModDirectTouch:Z\n\n'
+                        '.field private baiduModTraceCount:I\n\n'
+                        '.field private baiduModMoveLogged:Z\n\n')
     text = prepend(text, 'public final g(Lcom/baidu/input/ime/InputStatMac;[Ljava/lang/String;)V',
                    f'    invoke-virtual {{p0, p1}}, {SUB}->baiduModConfigureTouch(Lcom/baidu/input/ime/InputStatMac;)V')
     text = prepend(text, 'public final l(II)V', f'''    # A new touch owns the offset immediately, including during an old fling.
+    # Some KeyMap.b paths call A/D directly and never call SubList.g.
+    sget-object v0, {KEY}->c0:{STAT}
+    invoke-virtual {{p0, v0}}, {SUB}->baiduModConfigureTouch({STAT})V
+    const/4 v0, 0x0
+    iput-boolean v0, p0, {SUB}->baiduModMoveLogged:Z
+    const-string v0, "down"
+    invoke-virtual {{p0, v0}}, {SUB}->baiduModTrace(Ljava/lang/String;)V
     iget-boolean v0, p0, {SUB}->baiduModDirectTouch:Z
     if-eqz v0, :baidu_mod_down_original
     invoke-virtual {{p0}}, {SUB}->baiduModStopMotion()V
@@ -43,6 +54,8 @@ def patch_sublist(text):
     const/4 v0, 0x1
     iput-boolean v0, p0, {SUB}->w0:Z
     invoke-virtual {{p0}}, {SUB}->baiduModStopMotion()V
+    const-string v0, "up/cancel"
+    invoke-virtual {{p0, v0}}, {SUB}->baiduModTrace(Ljava/lang/String;)V
     return-void
     :baidu_mod_release_original''')
     # Preserve Z (drag detection), W (pressed styling), and the previous/current
@@ -55,6 +68,12 @@ def patch_sublist(text):
     move-result p1
     iput p1, p0, {SUB}->j:I
     iput p1, p0, {SUB}->k:I
+    iget-boolean v0, p0, {SUB}->baiduModMoveLogged:Z
+    if-nez v0, :baidu_mod_move_original
+    const/4 v0, 0x1
+    iput-boolean v0, p0, {SUB}->baiduModMoveLogged:Z
+    const-string v0, "move"
+    invoke-virtual {{p0, v0}}, {SUB}->baiduModTrace(Ljava/lang/String;)V
     :baidu_mod_move_original
     iget p1, p0, {SUB}->P:I''')
     return text + f'''
@@ -63,10 +82,11 @@ def patch_sublist(text):
 .method public final baiduModConfigureTouch(Lcom/baidu/input/ime/InputStatMac;)V
     .registers 5
 
+    const/4 v2, 0x0
+    if-eqz p1, :configured
     invoke-virtual {{p1}}, Lcom/baidu/input/ime/InputStatMac;->f()B
     move-result v0
     const/16 v1, 0x21
-    const/4 v2, 0x0
     if-ne v0, v1, :configured
     iget-byte v0, p1, Lcom/baidu/input/ime/InputStatMac;->d:B
     const/4 v1, 0x1
@@ -78,6 +98,8 @@ def patch_sublist(text):
     iget-boolean v0, p0, {SUB}->baiduModDirectTouch:Z
     iput-boolean v2, p0, {SUB}->baiduModDirectTouch:Z
     if-eq v0, v2, :done
+    const/4 v0, 0x0
+    iput v0, p0, {SUB}->baiduModTraceCount:I
     invoke-virtual {{p0}}, {SUB}->baiduModStopMotion()V
     :done
     return-void
@@ -135,6 +157,61 @@ def patch_sublist(text):
     iput-boolean v0, p0, {SUB}->i:Z
     return-void
 .end method
+
+# Only the first six events per instance/mode are logged; never log input text.
+.method public final baiduModTrace(Ljava/lang/String;)V
+    .registers 6
+
+    iget v0, p0, {SUB}->baiduModTraceCount:I
+    const/4 v1, 0x6
+    if-ge v0, v1, :trace_done
+    add-int/lit8 v0, v0, 0x1
+    iput v0, p0, {SUB}->baiduModTraceCount:I
+    new-instance v0, Ljava/lang/StringBuilder;
+    invoke-direct {{v0}}, Ljava/lang/StringBuilder;-><init>()V
+    const-string v1, "1.1.1 "
+    invoke-virtual {{v0, v1}}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {{v0, p1}}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    const-string v1, " class="
+    invoke-virtual {{v0, v1}}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {{p0}}, Ljava/lang/Object;->getClass()Ljava/lang/Class;
+    move-result-object v1
+    invoke-virtual {{v1}}, Ljava/lang/Class;->getSimpleName()Ljava/lang/String;
+    move-result-object v1
+    invoke-virtual {{v0, v1}}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    const-string v1, " enabled="
+    invoke-virtual {{v0, v1}}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    iget-boolean v1, p0, {SUB}->baiduModDirectTouch:Z
+    invoke-virtual {{v0, v1}}, Ljava/lang/StringBuilder;->append(Z)Ljava/lang/StringBuilder;
+    sget-object v2, {KEY}->c0:{STAT}
+    if-eqz v2, :trace_position
+    const-string v1, " inputType/layout/mode="
+    invoke-virtual {{v0, v1}}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    iget-byte v1, v2, {STAT}->b:B
+    invoke-virtual {{v0, v1}}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v3, "/"
+    invoke-virtual {{v0, v3}}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    iget-byte v1, v2, {STAT}->d:B
+    invoke-virtual {{v0, v1}}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    invoke-virtual {{v0, v3}}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    iget-byte v1, v2, {STAT}->g:B
+    invoke-virtual {{v0, v1}}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    :trace_position
+    const-string v1, " offset="
+    invoke-virtual {{v0, v1}}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    iget v1, p0, {SUB}->j:I
+    invoke-virtual {{v0, v1}}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v1, " scrollable="
+    invoke-virtual {{v0, v1}}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    iget-boolean v1, p0, {SUB}->X:Z
+    invoke-virtual {{v0, v1}}, Ljava/lang/StringBuilder;->append(Z)Ljava/lang/StringBuilder;
+    invoke-virtual {{v0}}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "BaiduInputModScroll"
+    invoke-static {{v1, v0}}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    :trace_done
+    return-void
+.end method
 '''
 
 
@@ -171,9 +248,33 @@ def patch_main_sublist(text):
     return text
 
 
+def patch_keymap(text):
+    # Refresh before every candidate update, including the A/D-only branches.
+    text = prepend(text, 'public b([Ljava/lang/String;)V', f'''    iget-object v0, p0, {KEY}->c:{SUB}
+    if-eqz v0, :baidu_mod_update_original
+    sget-object v1, {KEY}->c0:{STAT}
+    invoke-virtual {{v0, v1}}, {SUB}->baiduModConfigureTouch({STAT})V
+    :baidu_mod_update_original''')
+    # Keep the initial tap/drag threshold, but never re-enter its dead zone
+    # after a drag has started. v3/v5 are scratch at this point in S0.
+    return replace_once(text, '''    if-eqz v5, :cond_88
+
+    .line 62''', f'''    if-eqz v5, :cond_88
+
+    iget-object v3, v0, {KEY}->c:{SUB}
+    if-eqz v3, :baidu_mod_move_threshold
+    iget-boolean v5, v3, {SUB}->baiduModDirectTouch:Z
+    if-eqz v5, :baidu_mod_move_threshold
+    iget-boolean v5, v3, {SUB}->Z:Z
+    if-nez v5, :cond_55
+    :baidu_mod_move_threshold
+    .line 62''')
+
+
 PATCHES = {
     'com/baidu/input/ime/SubList.smali': ('classes3_smali.zip', patch_sublist),
     'com/baidu/input/optimization/MainSubListWrapper.smali': ('classes4_smali.zip', patch_main_sublist),
+    'com/baidu/input/ime/keymap/KeyMap.smali': ('classes3_smali.zip', patch_keymap),
 }
 
 

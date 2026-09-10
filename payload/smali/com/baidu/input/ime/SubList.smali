@@ -36,6 +36,10 @@
 # instance fields
 .field public baiduModDirectTouch:Z
 
+.field private baiduModTraceCount:I
+
+.field private baiduModMoveLogged:Z
+
 .field public A:Lcom/baidu/input/ime/params/ListParam;
 
 .field public B:I
@@ -872,6 +876,8 @@
     const/4 v0, 0x1
     iput-boolean v0, p0, Lcom/baidu/input/ime/SubList;->w0:Z
     invoke-virtual {p0}, Lcom/baidu/input/ime/SubList;->baiduModStopMotion()V
+    const-string v0, "up/cancel"
+    invoke-virtual {p0, v0}, Lcom/baidu/input/ime/SubList;->baiduModTrace(Ljava/lang/String;)V
     return-void
     :baidu_mod_release_original
 
@@ -3141,6 +3147,13 @@
     .registers 7
 
     # A new touch owns the offset immediately, including during an old fling.
+    # Some KeyMap.b paths call A/D directly and never call SubList.g.
+    sget-object v0, Lcom/baidu/input/ime/keymap/KeyMap;->c0:Lcom/baidu/input/ime/InputStatMac;
+    invoke-virtual {p0, v0}, Lcom/baidu/input/ime/SubList;->baiduModConfigureTouch(Lcom/baidu/input/ime/InputStatMac;)V
+    const/4 v0, 0x0
+    iput-boolean v0, p0, Lcom/baidu/input/ime/SubList;->baiduModMoveLogged:Z
+    const-string v0, "down"
+    invoke-virtual {p0, v0}, Lcom/baidu/input/ime/SubList;->baiduModTrace(Ljava/lang/String;)V
     iget-boolean v0, p0, Lcom/baidu/input/ime/SubList;->baiduModDirectTouch:Z
     if-eqz v0, :baidu_mod_down_original
     invoke-virtual {p0}, Lcom/baidu/input/ime/SubList;->baiduModStopMotion()V
@@ -6862,6 +6875,12 @@
     move-result p1
     iput p1, p0, Lcom/baidu/input/ime/SubList;->j:I
     iput p1, p0, Lcom/baidu/input/ime/SubList;->k:I
+    iget-boolean v0, p0, Lcom/baidu/input/ime/SubList;->baiduModMoveLogged:Z
+    if-nez v0, :baidu_mod_move_original
+    const/4 v0, 0x1
+    iput-boolean v0, p0, Lcom/baidu/input/ime/SubList;->baiduModMoveLogged:Z
+    const-string v0, "move"
+    invoke-virtual {p0, v0}, Lcom/baidu/input/ime/SubList;->baiduModTrace(Ljava/lang/String;)V
     :baidu_mod_move_original
     iget p1, p0, Lcom/baidu/input/ime/SubList;->P:I
 
@@ -6889,10 +6908,11 @@
 .method public final baiduModConfigureTouch(Lcom/baidu/input/ime/InputStatMac;)V
     .registers 5
 
+    const/4 v2, 0x0
+    if-eqz p1, :configured
     invoke-virtual {p1}, Lcom/baidu/input/ime/InputStatMac;->f()B
     move-result v0
     const/16 v1, 0x21
-    const/4 v2, 0x0
     if-ne v0, v1, :configured
     iget-byte v0, p1, Lcom/baidu/input/ime/InputStatMac;->d:B
     const/4 v1, 0x1
@@ -6904,6 +6924,8 @@
     iget-boolean v0, p0, Lcom/baidu/input/ime/SubList;->baiduModDirectTouch:Z
     iput-boolean v2, p0, Lcom/baidu/input/ime/SubList;->baiduModDirectTouch:Z
     if-eq v0, v2, :done
+    const/4 v0, 0x0
+    iput v0, p0, Lcom/baidu/input/ime/SubList;->baiduModTraceCount:I
     invoke-virtual {p0}, Lcom/baidu/input/ime/SubList;->baiduModStopMotion()V
     :done
     return-void
@@ -6959,5 +6981,60 @@
     iput-boolean v0, p0, Lcom/baidu/input/ime/SubList;->Y:Z
     iput-boolean v0, p0, Lcom/baidu/input/ime/SubList;->h:Z
     iput-boolean v0, p0, Lcom/baidu/input/ime/SubList;->i:Z
+    return-void
+.end method
+
+# Only the first six events per instance/mode are logged; never log input text.
+.method public final baiduModTrace(Ljava/lang/String;)V
+    .registers 6
+
+    iget v0, p0, Lcom/baidu/input/ime/SubList;->baiduModTraceCount:I
+    const/4 v1, 0x6
+    if-ge v0, v1, :trace_done
+    add-int/lit8 v0, v0, 0x1
+    iput v0, p0, Lcom/baidu/input/ime/SubList;->baiduModTraceCount:I
+    new-instance v0, Ljava/lang/StringBuilder;
+    invoke-direct {v0}, Ljava/lang/StringBuilder;-><init>()V
+    const-string v1, "1.1.1 "
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v0, p1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    const-string v1, " class="
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {p0}, Ljava/lang/Object;->getClass()Ljava/lang/Class;
+    move-result-object v1
+    invoke-virtual {v1}, Ljava/lang/Class;->getSimpleName()Ljava/lang/String;
+    move-result-object v1
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    const-string v1, " enabled="
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    iget-boolean v1, p0, Lcom/baidu/input/ime/SubList;->baiduModDirectTouch:Z
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Z)Ljava/lang/StringBuilder;
+    sget-object v2, Lcom/baidu/input/ime/keymap/KeyMap;->c0:Lcom/baidu/input/ime/InputStatMac;
+    if-eqz v2, :trace_position
+    const-string v1, " inputType/layout/mode="
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    iget-byte v1, v2, Lcom/baidu/input/ime/InputStatMac;->b:B
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v3, "/"
+    invoke-virtual {v0, v3}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    iget-byte v1, v2, Lcom/baidu/input/ime/InputStatMac;->d:B
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    invoke-virtual {v0, v3}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    iget-byte v1, v2, Lcom/baidu/input/ime/InputStatMac;->g:B
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    :trace_position
+    const-string v1, " offset="
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    iget v1, p0, Lcom/baidu/input/ime/SubList;->j:I
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v1, " scrollable="
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    iget-boolean v1, p0, Lcom/baidu/input/ime/SubList;->X:Z
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Z)Ljava/lang/StringBuilder;
+    invoke-virtual {v0}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v0
+    const-string v1, "BaiduInputModScroll"
+    invoke-static {v1, v0}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    :trace_done
     return-void
 .end method
