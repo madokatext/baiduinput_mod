@@ -159,48 +159,31 @@
       ]
     },
     {
-      "name": "com.baidu.input.ime.SubList",
-      "path": "com/baidu/input/ime/SubList.smali",
-      "originSha256": "d82a7303d767c4a78c30a8b813d2d5484e76da345eccebc9a586dd9241c85f0e",
-      "modSha256": "d82a7303d767c4a78c30a8b813d2d5484e76da345eccebc9a586dd9241c85f0e",
-      "payloadSha256": "b0fa61312198bc0906d48981a42fa509a9d17c491a2f86206fd9909bb8fcc36c",
-      "feature": "nine-key-pinyin-direct-scroll",
+      "name": "com.baidu.input.ime.cand.CandHandler",
+      "path": "com/baidu/input/ime/cand/CandHandler.smali",
+      "originSha256": "aa0f55b27d59dbce63633f578caf074b26b611b5a74c3d4cb881882881a24969",
+      "modSha256": "aa0f55b27d59dbce63633f578caf074b26b611b5a74c3d4cb881882881a24969",
+      "payloadSha256": "de4a55764536810ec624f2c03a66dbb5ec4aad09d13c8161d9d46533addda14a",
+      "feature": "nine-key-top-candidate-direct-scroll",
       "methods": [
-        "public final C(J)V",
-        "public final g(Lcom/baidu/input/ime/InputStatMac;[Ljava/lang/String;)V",
-        "public final l(II)V",
-        "public final z(IIII)V",
-        "public final baiduModConfigureTouch(Lcom/baidu/input/ime/InputStatMac;)V",
-        "public final baiduModClampOffset(I)I",
-        "public final baiduModStopMotion()V",
+        "public final S2(Landroid/view/MotionEvent;)Z",
+        "public final baiduModBeginTouch(Landroid/view/MotionEvent;)V",
+        "public final baiduModTraceMove(Ljava/lang/String;)V",
         "public final baiduModTrace(Ljava/lang/String;)V"
       ]
     },
     {
-      "name": "com.baidu.input.optimization.MainSubListWrapper",
-      "path": "com/baidu/input/optimization/MainSubListWrapper.smali",
-      "originSha256": "7bb706a1976e73d88ffe294c1b209bc696defd2752e3cde908629b7a0941c899",
-      "modSha256": "7bb706a1976e73d88ffe294c1b209bc696defd2752e3cde908629b7a0941c899",
-      "payloadSha256": "141f3efc3552a812b58736cb491183c46fa0ee6c77bb96151071a2bc3c4fd5c7",
-      "feature": "nine-key-pinyin-direct-scroll",
+      "name": "com.baidu.input.panel.render.cand.slide.SlidingView",
+      "path": "com/baidu/input/panel/render/cand/slide/SlidingView.smali",
+      "originSha256": "966788a27eea0f97d106e10d6ba378af83a690f07a8096f40377eb2ac526f8e2",
+      "modSha256": "966788a27eea0f97d106e10d6ba378af83a690f07a8096f40377eb2ac526f8e2",
+      "payloadSha256": "b37ed7a1f53f0d5b4b32a96d88c3e914f77ccb8b7ab14e9a6bfbb7d11e94e09b",
+      "feature": "nine-key-top-candidate-direct-scroll",
       "methods": [
-        "public final G()V",
-        "public final a()V",
-        "public final b(IIZ)V",
-        "public final computeScroll()V",
-        "public final d(I)I"
-      ]
-    },
-    {
-      "name": "com.baidu.input.ime.keymap.KeyMap",
-      "path": "com/baidu/input/ime/keymap/KeyMap.smali",
-      "originSha256": "ffd750b60a8cbdcb369e362d89e9e770459a88e486dc75518bef9a5c1e55b0a1",
-      "modSha256": "ffd750b60a8cbdcb369e362d89e9e770459a88e486dc75518bef9a5c1e55b0a1",
-      "payloadSha256": "5bf0ef69648bad3c5dc67bdf93c535d65045e7fd0254832362a9caacb369d212",
-      "feature": "nine-key-pinyin-direct-scroll",
-      "methods": [
-        "public final S0(Lcom/baidu/input/ime/TouchPoint;I)V",
-        "public b([Ljava/lang/String;)V"
+        "public final b(I)V",
+        "public final c(I)V",
+        "public final baiduModStopScroll()V",
+        "public final baiduModMove(I)V"
       ]
     }
   ],
