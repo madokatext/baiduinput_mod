@@ -28,12 +28,12 @@ public final class InfoActivity extends Activity {
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(padding, padding, padding, padding);
         content.addView(text("百度输入法 Mod 设置", 24));
-        content.addView(text("1.3.2 · Android 15 · LSPosed API 100\n", 14));
+        content.addView(text("1.3.3 · Android 15 · LSPosed API 100\n", 14));
         candidate = new Switch(this);
         candidate.setText("顶部候选栏跟手滚动"); candidate.setTextSize(18);
         candidate.setPadding(0, padding / 2, 0, padding / 2);
         content.addView(candidate);
-        content.addView(text("九键拼音下，顶部汉字候选栏随手指左右移动，松手后按滑动速度减速滑行，到边界停止，再次触摸可打断惯性，并防止横向拖动误选词。点击时上下移动不会取消选词。关闭后恢复输入法原有行为。左侧拼音列表保持原样。", 16));
+        content.addView(text("九键拼音下，顶部汉字候选栏随手指左右移动，松手后按滑动速度减速滑行，到边界停止，再次触摸可打断惯性，并防止横向拖动误选词。横向位移超过系统点击容差且以左右移动为主时才开始滚动；点击时的轻微抖动和上下移动保留原候选。关闭后恢复输入法原有行为。左侧拼音列表保持原样。", 16));
         strengthLabel = text("", 18); strengthLabel.setPadding(0, padding, 0, 0);
         content.addView(strengthLabel);
         strength = new SeekBar(this); strength.setMax(ModuleSettings.MAX_STRENGTH); strength.setKeyProgressIncrement(10);
