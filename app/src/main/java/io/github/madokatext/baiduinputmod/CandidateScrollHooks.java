@@ -181,9 +181,15 @@ final class CandidateScrollHooks {
                 }
                 invalidate.invoke(controller);
             } else if (action == MotionEvent.ACTION_MOVE) {
-                // No horizontal pixel displacement yet. An ordinary UP still
-                // follows Baidu's original selection path.
+                // Vertical movement alone keeps the original candidate pressed.
                 cb.returnAndSkip(true);
+            } else if (action == MotionEvent.ACTION_UP && event.getY() != g.downY) {
+                // Baidu also checks Y when matching the released candidate.
+                // Ignore vertical drift for taps, including releases below the
+                // bar, without changing the dispatcher's original event.
+                g.tapRelease = MotionEvent.obtain(event);
+                g.tapRelease.setLocation(event.getX(), g.downY);
+                cb.getArgs()[0] = g.tapRelease;
             }
         } catch (Throwable error) {
             Gesture g = gestures.get(controller);
@@ -217,6 +223,7 @@ final class CandidateScrollHooks {
                 }
             } else if (event.getActionMasked() == MotionEvent.ACTION_UP && !g.dragged) discard(controller);
         } catch (Throwable error) { discard(controller); fail(error); }
+        finally { g.recycleTapRelease(); }
     }
     private void discard(Object controller) {
         Gesture previous = gestures.remove(controller);
@@ -226,10 +233,10 @@ final class CandidateScrollHooks {
         // Match the previous direct-scroll feature: the first horizontal pixel
         // already moves the bar and must remove click eligibility, even at an edge.
         if (event.getActionMasked() == MotionEvent.ACTION_MOVE && (int) event.getX() != (int) g.downX) return true;
-        if (Math.abs(event.getX() - g.downX) > g.slop || Math.abs(event.getY() - g.downY) > g.slop) return true;
+        // The top bar only scrolls horizontally. Y drift must not cancel a tap.
+        if (Math.abs(event.getX() - g.downX) > g.slop) return true;
         for (int i = 0; i < event.getHistorySize(); i++) {
-            if ((int) event.getHistoricalX(i) != (int) g.downX
-                    || Math.abs(event.getHistoricalY(i) - g.downY) > g.slop) return true;
+            if ((int) event.getHistoricalX(i) != (int) g.downX) return true;
         }
         return false;
     }
@@ -377,7 +384,7 @@ final class CandidateScrollHooks {
         }
         @Override public void failed(Throwable error) { failInertia(error); }
     }
-    private void trace(String message) { if (traces++ < 12) h.module.log("CandidateScroll 1.3.1: " + message); }
+    private void trace(String message) { if (traces++ < 12) h.module.log("CandidateScroll 1.3.2: " + message); }
     private void fail(Throwable error) {
         if (!failed) { failed = true; h.module.log("Candidate touch hooks disabled; app interface changed", error); }
     }
@@ -389,6 +396,7 @@ final class CandidateScrollHooks {
         private float trackedX;
         private long lastHorizontalMove;
         private VelocityTracker velocity;
+        private MotionEvent tapRelease;
         CandidateInertia inertia;
         boolean captured, modern, dragged, cancelled;
         Gesture(Object handler, MotionEvent event, ViewConfiguration config, int strength, int duration) {
@@ -421,8 +429,12 @@ final class CandidateScrollHooks {
         void recycleVelocity() {
             if (velocity != null) { velocity.recycle(); velocity = null; }
         }
+        void recycleTapRelease() {
+            if (tapRelease != null) { tapRelease.recycle(); tapRelease = null; }
+        }
         void dispose() {
             recycleVelocity();
+            recycleTapRelease();
             if (inertia != null) { inertia.cancel(); inertia = null; }
         }
     }

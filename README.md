@@ -1,6 +1,6 @@
 # 百度输入法 Mod 模块
 
-**1.3.1 修复上游触摸分发吞掉小幅 MOVE 的起滑迟滞，顶部候选栏提前使用低阈值移动分支，起滑距离约缩短 36 倍（按设备参数取整）。** 保留可调惯性、跟手滚动开关和全模块方法 Hook。面向 Android 15（SDK 35）、LSPosed modern API 100，作用域为 `com.baidu.input`。
+**1.3.2 取消九键拼音顶部候选栏点击的纵向滑动判定，手指下移不再取消选词，未发生横向拖动时松手沿用按下位置的纵坐标。** 保留低阈值横向跟手滚动、可调惯性、跟手滚动开关和全模块方法 Hook。面向 Android 15（SDK 35）、LSPosed modern API 100，作用域为 `com.baidu.input`。
 
 所有功能都不再使用整类替换：已删除 20 个 smali 覆盖类、DEX 前置加载器、资源表覆盖器和 smali 汇编任务。模块不会改动应用 ClassLoader、`dexElements`、安装 APK 或应用签名。构建只编译模块与 API 100 设置通信源码。
 
@@ -11,7 +11,7 @@
 3. 打开模块的设置界面，调整“顶部候选栏跟手滚动”、惯性强度和减速时长。跟手滚动默认开启，关闭后使用输入法原有触摸行为。未连接 LSPosed 时设置不可操作；保存失败时恢复上次的控件值并提示。
 4. 设置通过 LSPosed API 100 的远程 preferences 保存。滑块松手后自动保存，输入法在每次 DOWN 时读取参数；修改从下一次手势生效，进行中的触摸仍完成清理。关闭跟手滚动会停止正在进行的惯性。
 
-这项开关仅控制九键模式的**顶部横向汉字候选栏**：按住时跟手移动，松手后逐渐减速滑行，到边界停止，再次触摸打断惯性，保留拖动防误选。左侧拼音列表使用百度原版行为。其他 Mod 功能保持启用。
+这项开关仅控制九键模式的**顶部横向汉字候选栏**：按住时左右跟手移动，松手后逐渐减速滑行，到边界停止，再次触摸打断惯性，保留横向拖动防误选。点击时上下移动不会取消选词；未触发横向拖动时，松手位置下移到候选栏外仍按原候选完成选词。左侧拼音列表使用百度原版行为。其他 Mod 功能保持启用。
 
 | 惯性参数 | 范围 | 默认 | 效果 |
 | --- | --- | --- | --- |
@@ -42,7 +42,7 @@
 - 使用系统方法的 Hook 只在指定百度方法的本次调用范围内调整参数；线程上下文在返回或异常时恢复。已知可能内联的调用点采用 API 100 的定点反优化。
 - 适配依据仍是用户提供的百度输入法 **13.3.6.52（1149）** 源材料。改用 Hook 降低了对完整类实现和资源表的耦合，**不保证未来任意版本自动兼容**：若混淆名、字段或语义改变，仍需更新对应适配。
 
-日志以 `Hook group installed:`、`Hook group unavailable; keeping app behavior:` 区分各功能安装结果；调用时发现不兼容会输出 `Hook disabled after incompatible call:`。候选栏额外输出最多十二条不含候选内容的 `CandidateScroll 1.3.1` 日志，包括触摸入口的开关/九键状态、顶部 DOWN 捕获结果、`early MOVE enabled`、拖动释放结果和惯性启动参数。惯性适配异常单独输出 `Candidate inertia disabled; direct touch scrolling remains enabled`，不停止已安装的跟手拖动 Hook。安装日志仅表示 Hook 注册完成，不能代替设备效果验证。
+日志以 `Hook group installed:`、`Hook group unavailable; keeping app behavior:` 区分各功能安装结果；调用时发现不兼容会输出 `Hook disabled after incompatible call:`。候选栏额外输出最多十二条不含候选内容的 `CandidateScroll 1.3.2` 日志，包括触摸入口的开关/九键状态、顶部 DOWN 捕获结果、`early MOVE enabled`、拖动释放结果和惯性启动参数。惯性适配异常单独输出 `Candidate inertia disabled; direct touch scrolling remains enabled`，不停止已安装的跟手拖动 Hook。安装日志仅表示 Hook 注册完成，不能代替设备效果验证。
 
 ## GitHub Actions 构建
 
