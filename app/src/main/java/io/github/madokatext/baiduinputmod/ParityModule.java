@@ -17,7 +17,7 @@ public final class ParityModule extends XposedModule {
         HookSupport hooks = new HookSupport(this, param.getClassLoader());
         new ModHooks(hooks).install();
         new CandidateScrollHooks(hooks).install();
-        log("BaiduInputMod 1.3.3 hook registration finished; consult group results; no DEX/class/resource-table replacement");
+        log("BaiduInputMod 1.3.4 hook registration finished; consult group results; no DEX/class/resource-table replacement");
     }
     boolean candidateScrollEnabled() {
         if (preferences == null) return false;
@@ -27,17 +27,20 @@ public final class ParityModule extends XposedModule {
             return false;
         }
     }
+    int candidateDragThreshold() {
+        return ModuleSettings.dragThreshold(gestureSetting(ModuleSettings.DRAG_THRESHOLD, ModuleSettings.DEFAULT_DRAG_THRESHOLD));
+    }
     int candidateInertiaStrength() {
-        return ModuleSettings.strength(inertiaSetting(ModuleSettings.INERTIA_STRENGTH, ModuleSettings.DEFAULT_STRENGTH));
+        return ModuleSettings.strength(gestureSetting(ModuleSettings.INERTIA_STRENGTH, ModuleSettings.DEFAULT_STRENGTH));
     }
     int candidateInertiaDuration() {
-        return ModuleSettings.duration(inertiaSetting(ModuleSettings.INERTIA_DURATION, ModuleSettings.DEFAULT_DURATION));
+        return ModuleSettings.duration(gestureSetting(ModuleSettings.INERTIA_DURATION, ModuleSettings.DEFAULT_DURATION));
     }
-    private int inertiaSetting(String key, int fallback) {
+    private int gestureSetting(String key, int fallback) {
         if (preferences == null) return fallback;
         try { return preferences.getInt(key, fallback); }
         catch (RuntimeException error) {
-            if (!preferenceError) { preferenceError = true; log("Cannot read inertia setting; using defaults", error); }
+            if (!preferenceError) { preferenceError = true; log("Cannot read candidate gesture setting; using defaults", error); }
             return fallback;
         }
     }

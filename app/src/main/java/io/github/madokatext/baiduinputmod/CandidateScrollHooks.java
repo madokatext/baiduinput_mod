@@ -150,7 +150,7 @@ final class CandidateScrollHooks {
                 if (host == null) return;
                 stop(handler);
                 gestures.put(controller, new Gesture(handler, event, ViewConfiguration.get(host.getContext()),
-                        h.module.candidateInertiaStrength(), h.module.candidateInertiaDuration()));
+                        h.module.candidateDragThreshold(), h.module.candidateInertiaStrength(), h.module.candidateInertiaDuration()));
                 return;
             }
             Gesture g = gestures.get(controller);
@@ -225,7 +225,7 @@ final class CandidateScrollHooks {
                 Object slide = slide(handler);
                 g.modern = modern.getBoolean(handler) && slide != null && contains((Rect) slideBounds.get(slide), event);
                 g.captured = g.modern || (legacy.getBoolean(handler) && contains((Rect) legacyBounds.get(null), event));
-                if (g.captured) trace("top DOWN captured; renderer=" + (g.modern ? "modern" : "legacy") + "; slop=" + g.slop);
+                if (g.captured) trace("top DOWN captured; renderer=" + (g.modern ? "modern" : "legacy") + "; slop=" + g.slop + "; thresholdPercent=" + g.thresholdPercent);
                 else {
                     trace("top DOWN left to app; no candidate capture");
                     discard(controller);
@@ -248,7 +248,7 @@ final class CandidateScrollHooks {
     private static boolean horizontalDrag(Gesture g, float x, float y) {
         float dx = Math.abs(x - g.downX), dy = Math.abs(y - g.downY);
         // A downward tap naturally includes some X drift. Only an intentional
-        // horizontal movement beyond Android's tap tolerance starts scrolling.
+        // horizontal movement beyond the configured tap tolerance starts scrolling.
         return dx > g.slop && dx > dy;
     }
     private static String displacement(Gesture g, MotionEvent event) {
@@ -399,14 +399,14 @@ final class CandidateScrollHooks {
         }
         @Override public void failed(Throwable error) { failInertia(error); }
     }
-    private void trace(String message) { if (traces++ < 48) h.module.log("CandidateScroll 1.3.3: " + message); }
+    private void trace(String message) { if (traces++ < 48) h.module.log("CandidateScroll 1.3.4: " + message); }
     private void fail(Throwable error) {
         if (!failed) { failed = true; h.module.log("Candidate touch hooks disabled; app interface changed", error); }
     }
     private static final class Gesture {
         final WeakReference<Object> handler;
         final float downX, downY;
-        final int slop, pointerId, minVelocity, maxVelocity, strength, duration;
+        final int slop, thresholdPercent, pointerId, minVelocity, maxVelocity, strength, duration;
         int lastX;
         private float trackedX;
         private long lastHorizontalMove;
@@ -414,10 +414,12 @@ final class CandidateScrollHooks {
         private MotionEvent tapRelease;
         CandidateInertia inertia;
         boolean captured, modern, dragged, cancelled, horizontalIntent;
-        Gesture(Object handler, MotionEvent event, ViewConfiguration config, int strength, int duration) {
+        Gesture(Object handler, MotionEvent event, ViewConfiguration config, int thresholdPercent, int strength, int duration) {
             this.handler = new WeakReference<>(handler);
             downX = event.getX(); downY = event.getY(); lastX = (int) downX;
-            pointerId = event.getPointerId(0); slop = config.getScaledTouchSlop();
+            pointerId = event.getPointerId(0);
+            this.thresholdPercent = ModuleSettings.dragThreshold(thresholdPercent);
+            slop = ModuleSettings.dragThresholdPixels(config.getScaledTouchSlop(), this.thresholdPercent);
             minVelocity = config.getScaledMinimumFlingVelocity(); maxVelocity = config.getScaledMaximumFlingVelocity();
             this.strength = strength; this.duration = duration;
             trackedX = downX; lastHorizontalMove = event.getEventTime();
