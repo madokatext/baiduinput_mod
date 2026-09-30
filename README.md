@@ -46,7 +46,7 @@
 
 ## GitHub Actions 构建
 
-推送到 `main` 自动触发 [Build APK](.github/workflows/build-apk.yml)，也支持手动触发。流水线使用 JDK 17、Gradle 8.9、Android SDK 35、AGP 8.7.3，运行：
+推送到 `main` 自动触发 [Build APK](.github/workflows/build-apk.yml)，也支持手动触发。流水线使用 JDK 17、Gradle 8.9、Android SDK 35、AGP 8.7.3。SDK 初始化显式安装 platform-tools，避免 setup-android 默认请求已无法找到的 tools 包；随后安装 Android 35 平台和 Build Tools 35.0.0。编译命令：
 
 ```sh
 gradle --no-daemon --console=plain :app:assembleRelease
