@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <permission android:name="io.github.madokatext.baiduinputmod.permission.CLIPBOARD_RESCUE"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="io.github.madokatext.baiduinputmod.permission.CLIPBOARD_RESCUE" />
     <application
         android:name=".SettingsApplication"
         android:allowBackup="false"

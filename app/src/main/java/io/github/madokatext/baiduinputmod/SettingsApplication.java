@@ -14,8 +14,10 @@ public final class SettingsApplication extends Application {
     private final Handler main = new Handler(Looper.getMainLooper());
     private volatile SharedPreferences preferences;
     private volatile XposedService bound;
+    private ClipboardRescueController clipboardRescue;
     @Override public void onCreate() {
         super.onCreate();
+        clipboardRescue = new ClipboardRescueController(this);
         XposedServiceHelper.registerListener(new XposedServiceHelper.OnServiceListener() {
             @Override public void onServiceBind(XposedService service) {
                 try { preferences = service.getRemotePreferences(ModuleSettings.GROUP); bound = service; }
@@ -28,6 +30,7 @@ public final class SettingsApplication extends Application {
         });
     }
     SharedPreferences preferences() { return preferences; }
+    ClipboardRescueController clipboardRescue() { return clipboardRescue; }
     void invalidateConnection() { preferences = null; }
     void listen(Runnable listener) { listeners.add(listener); }
     void unlisten(Runnable listener) { listeners.remove(listener); }

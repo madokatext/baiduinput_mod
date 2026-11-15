@@ -1,6 +1,7 @@
 package io.github.madokatext.baiduinputmod;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.ViewConfiguration;
@@ -13,24 +14,38 @@ import android.widget.TextView;
 
 public final class InfoActivity extends Activity {
     private SettingsApplication settings;
+    private ClipboardRescueController clipboardRescue;
     private Switch candidate;
     private SeekBar threshold, strength, duration;
-    private Button resetThreshold, resetInertia;
+    private Button resetThreshold, resetInertia, rescue;
+    private TextView rescueStatus;
     private TextView status, thresholdLabel, strengthLabel, durationLabel;
     private boolean rendering, adjusting, savedEnabled = true;
     private int savedThreshold = ModuleSettings.DEFAULT_DRAG_THRESHOLD;
     private int savedStrength = ModuleSettings.DEFAULT_STRENGTH, savedDuration = ModuleSettings.DEFAULT_DURATION;
     private final Runnable refresh = this::renderSetting;
+    private final Runnable refreshRescue = this::renderRescue;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         settings = (SettingsApplication) getApplication();
+        clipboardRescue = settings.clipboardRescue();
         int padding = Math.round(24 * getResources().getDisplayMetrics().density);
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(padding, padding, padding, padding);
         content.addView(text("百度输入法 Mod 设置", 24));
-        content.addView(text("1.3.5 · Android 15 · LSPosed API 100\n", 14));
+        content.addView(text("1.3.6 · Android 15 · LSPosed API 100\n", 14));
+        content.addView(text("剪贴板抢救", 20));
+        content.addView(text("输入法可以启动，但打开剪贴板会崩溃时，直接从这里移除最新保存或更新的一条内容，无需打开剪贴板。操作会永久删除该内容及其在另一剪贴板列表中的副本；成功后输入法进程会退出以清除旧缓存。", 16));
+        rescue = new Button(this); rescue.setText("移除最新一条剪贴板内容"); content.addView(rescue);
+        rescueStatus = text("", 14); rescueStatus.setPadding(0, 0, 0, padding); content.addView(rescueStatus);
+        rescue.setOnClickListener(button -> new AlertDialog.Builder(this)
+                .setTitle("移除最新一条剪贴板内容？")
+                .setMessage("将永久删除最新保存或更新的一条剪贴板内容（包括已置顶条目），并清理另一列表中的相同内容副本。成功后结束输入法进程，尚未上屏的输入会丢失。\n\n若系统剪贴板仍保留原超长内容，操作成功后请先复制一段短文本，再调出输入法。"
+                        + (clipboardRescue.uncertain() ? "\n\n上次抢救结果未确认，请先检查，避免再次删除下一条记录。" : ""))
+                .setNegativeButton("取消", null)
+                .setPositiveButton("移除一条", (dialog, which) -> clipboardRescue.start()).show());
         content.addView(text("九键拼音：删除键从后往前逐个取消已选拼音，全部取消后再删除字符；已选拼音显示为绿色。", 16));
         candidate = new Switch(this);
         candidate.setText("顶部候选栏跟手滚动"); candidate.setTextSize(18);
@@ -85,10 +100,16 @@ public final class InfoActivity extends Activity {
             rendering = false;
             saveSettings();
         });
-        settings.listen(refresh); renderSetting();
+        settings.listen(refresh); clipboardRescue.listen(refreshRescue); renderSetting(); renderRescue();
     }
     private TextView text(String value, int size) {
         TextView text = new TextView(this); text.setText(value); text.setTextSize(size); return text;
+    }
+    private void renderRescue() {
+        if (isDestroyed()) return;
+        rescue.setEnabled(!clipboardRescue.running());
+        rescue.setText(clipboardRescue.running() ? "正在抢救……" : "移除最新一条剪贴板内容");
+        rescueStatus.setText(clipboardRescue.message());
     }
     private void renderSetting() {
         if (isDestroyed()) return;
@@ -158,5 +179,7 @@ public final class InfoActivity extends Activity {
             status.setText("保存失败，已恢复上次设置。请确认 LSPosed 已启用本模块，强行停止本模块后重新打开设置。");
         }
     }
-    @Override protected void onDestroy() { settings.unlisten(refresh); super.onDestroy(); }
+    @Override protected void onDestroy() {
+        settings.unlisten(refresh); clipboardRescue.unlisten(refreshRescue); super.onDestroy();
+    }
 }

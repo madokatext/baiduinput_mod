@@ -15,10 +15,11 @@ public final class ParityModule extends XposedModule {
         try { preferences = getRemotePreferences(ModuleSettings.GROUP); }
         catch (Throwable error) { log("Cannot read candidate setting; candidate feature stays off until restart", error); }
         HookSupport hooks = new HookSupport(this, param.getClassLoader());
+        new ClipboardRescueHooks(hooks).install();
         new ModHooks(hooks).install();
         new CandidateScrollHooks(hooks).install();
         new PinyinSelectionHooks(hooks).install();
-        log("BaiduInputMod 1.3.5 hook registration finished; consult group results; no DEX/class/resource-table replacement");
+        log("BaiduInputMod 1.3.6 hook registration finished; consult group results; no DEX/class/resource-table replacement");
     }
     boolean candidateScrollEnabled() {
         if (preferences == null) return false;
