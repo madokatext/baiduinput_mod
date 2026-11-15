@@ -22,6 +22,14 @@
 
 普通 `InputBarView.l(Canvas, String)` 与内嵌 `QuadraticInputBarView.draw(Canvas)` 的绘制范围内，识别当前拼音栏的画笔及已选文字颜色，并将已选拼音改为 `#00C853`。使用画笔副本保留透明度及文字属性；混合汉字和拼音的绘制按字符范围分开着色，汉字保留原色。
 
+### 1.3.7 修正：硬件加速绘制入口
+
+用户反馈 1.3.5/1.3.6 仍显示黄色。上一版仅从 `Canvas` 解析并 Hook `drawText(String, float, float, Paint)`，遗漏了硬件加速实现：Android 15 的 `RecordingCanvas` 继承 `BaseRecordingCanvas`，后者自行重写该方法并直接调用 native 绘制，不会经过普通 Canvas 的方法。依据见 [BaseRecordingCanvas](https://github.com/aosp-mirror/platform_frameworks_base/blob/android15-release/graphics/java/android/graphics/BaseRecordingCanvas.java) 与 [RecordingCanvas](https://github.com/aosp-mirror/platform_frameworks_base/blob/android15-release/graphics/java/android/graphics/RecordingCanvas.java)。
+
+现在分别解析普通 Canvas 和 RecordingCanvas 的实际声明方法，去重后安装相同的颜色 Hook。另对原版 `InputBarView.draw/b/c/d/e`、`QuadraticInputBarView.g/h/i` 及已有的外层绘制入口反优化，避免已编译的辅助方法继续使用内联的原版 `drawText`。
+
+新增不含输入正文的 `PinyinColor 1.3.7` 日志：安装时记录两个绘制方法的实际声明类；最多八条绘制入口日志记录实际 Canvas 类型、九键状态及已选长度，最多八条日志记录已选拼音进入着色分支。入口诊断失败不会停用颜色功能。日志进入着色分支不能代替实机视觉确认。
+
 原皮肤字段、共享画笔和资源表都不改写。绘制所属对象由 `HookSupport` 的调用上下文提供，返回或异常时都会恢复，避免颜色规则影响范围外的绘制。
 
 ## 适配与验证范围

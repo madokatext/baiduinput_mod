@@ -2,7 +2,9 @@ package io.github.madokatext.baiduinputmod;
 
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Rect;
 
+import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -25,7 +27,7 @@ final class PinyinSelectionHooks {
             cursorIndex, autofix, moveCursor, popInput, popBegin, popEnd;
     private Constructor<?> newShow;
     private Field barState, barPaint, barColor, inlineState, inlinePaint, inlineColor;
-    private int traces;
+    private int traces, colorEntries, colorChanges;
 
     PinyinSelectionHooks(HookSupport h) { this.h = h; }
 
@@ -64,13 +66,58 @@ final class PinyinSelectionHooks {
             inlineState = field(inline, "z0", h.type(BAR_STATE));
             inlinePaint = field(inline, "e", h.type("com.baidu.input.acgfont.ImeBasePaint"));
             inlineColor = field(inline, "C", int.class);
+            Method softwareText = method(Canvas.class, "drawText", void.class,
+                    String.class, float.class, float.class, Paint.class);
+            // Hardware view rendering uses RecordingCanvas's inherited override
+            // in BaseRecordingCanvas, which does not call the software method.
+            // Resolve the actual declaring method instead of assuming Canvas.
+            Method hardwareText = method(h.type("android.graphics.RecordingCanvas"), "drawText",
+                    void.class, String.class, float.class, float.class, Paint.class);
+            deoptimizeTextDrawers(bar, inline);
             // Invocation owners are restored by HookSupport even after an
             // exception. Do not change the skin fields or shared paint objects.
-            h.add(method(bar, "l", void.class, Canvas.class, String.class), INPUT_BAR, null, null);
-            h.add(method(inline, "draw", void.class, Canvas.class), INLINE_BAR, null, null);
-            h.add(method(Canvas.class, "drawText", void.class, String.class, float.class,
-                    float.class, Paint.class), this::beforeDrawText, null);
+            h.add(method(bar, "l", void.class, Canvas.class, String.class), INPUT_BAR,
+                    cb -> traceColorEntry(cb, false), null);
+            h.add(method(inline, "draw", void.class, Canvas.class), INLINE_BAR,
+                    cb -> traceColorEntry(cb, true), null);
+            h.add(softwareText, this::beforeDrawText, null);
+            if (!hardwareText.equals(softwareText)) h.add(hardwareText, this::beforeDrawText, null);
+            h.module.log("PinyinColor 1.3.7: text hooks resolved; software="
+                    + softwareText.getDeclaringClass().getName() + "; hardware="
+                    + hardwareText.getDeclaringClass().getName());
         });
+    }
+
+    private void deoptimizeTextDrawers(Class<?> bar, Class<?> inline) throws Exception {
+        Class<?> inputData = Array.newInstance(h.type("com.baidu.input.ime.inputbar.KpInputData"), 0).getClass();
+        // Deoptimizing only the outer draw method leaves already compiled
+        // helpers able to use an inlined, unhooked drawText implementation.
+        h.module.deoptimize(method(bar, "draw", void.class, Canvas.class));
+        for (String name : new String[]{"b", "c"}) h.module.deoptimize(method(bar, name,
+                int.class, int.class, int.class, Canvas.class, String.class));
+        h.module.deoptimize(method(bar, "d", void.class, Canvas.class, Rect.class, int.class));
+        h.module.deoptimize(method(bar, "e", void.class, String.class, int.class, int.class,
+                int.class, int.class, Canvas.class, inputData, int.class));
+        for (String name : new String[]{"g", "h"}) h.module.deoptimize(method(inline, name,
+                int.class, int.class, int.class, Canvas.class, String.class));
+        h.module.deoptimize(method(inline, "i", void.class, String.class, int.class, int.class,
+                int.class, int.class, Canvas.class, inputData));
+    }
+
+    private void traceColorEntry(XposedInterface.BeforeHookCallback cb, boolean inline) {
+        if (colorEntries++ >= 8) return;
+        try {
+            Object bar = cb.getThisObject();
+            Object state = (inline ? inlineState : barState).get(bar);
+            Object input = state == null ? null : inputState.get(state);
+            Object show = input == null ? null : showInfo.get(input);
+            h.module.log("PinyinColor 1.3.7: draw entry; inline=" + inline + "; canvas="
+                    + cb.getArgs()[0].getClass().getName() + "; nineKey=" + nineKey()
+                    + "; selectedLength=" + (show == null ? 0 : listLength.invoke(show)));
+        } catch (Exception error) {
+            // Diagnostic failure must not disable the actual drawing hook.
+            h.module.log("PinyinColor 1.3.7: draw-entry diagnostic unavailable", error);
+        }
     }
 
     private void bindState() throws Exception {
@@ -176,6 +223,8 @@ final class PinyinSelectionHooks {
         if (!letters) return;
         Paint green = new Paint(paint);
         green.setColor((paint.getColor() & 0xff000000) | (SELECTED_GREEN & 0xffffff));
+        if (colorChanges++ < 8) h.module.log("PinyinColor 1.3.7: selected pinyin recolored; canvas="
+                + cb.getThisObject().getClass().getName());
         if (!other) { args[3] = green; return; }
         // A single draw may contain confirmed Chinese followed by pinyin.
         // Keep its Chinese glyphs and alignment while recoloring only pinyin.

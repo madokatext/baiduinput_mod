@@ -1,6 +1,6 @@
 # 百度输入法 Mod 模块
 
-**1.3.6 新增“剪贴板抢救”：输入法能启动、打开剪贴板却崩溃时，可从模块界面手动移除最新一条内容。** 保留九键已选拼音逐个撤销及绿色文字、可调候选栏起滑阈值、跟手滚动和惯性。面向 Android 15（SDK 35）、LSPosed modern API 100，作用域为 `com.baidu.input`。
+**1.3.7 修复已选拼音仍显示黄色：补上硬件加速 Canvas 的文字绘制入口，并反优化相关绘制辅助方法。** 保留剪贴板抢救、九键已选拼音逐个撤销、可调候选栏起滑阈值、跟手滚动和惯性。面向 Android 15（SDK 35）、LSPosed modern API 100，作用域为 `com.baidu.input`。
 
 所有功能都不再使用整类替换：已删除 20 个 smali 覆盖类、DEX 前置加载器、资源表覆盖器和 smali 汇编任务。模块不会改动应用 ClassLoader、`dexElements`、安装 APK 或应用签名。构建只编译模块与 API 100 设置通信源码。
 
@@ -39,7 +39,7 @@
 | 四条资源文案 | 按资源名称处理 Resources / TypedArray 的字符串读取；无需完整资源表或固定数值 ID |
 | 顶部候选栏 | Hook `CandidateView.onTouchEvent(MotionEvent)`、`r0()` 及继承的 `AbsSoftView.dispatchTouchEvent(MotionEvent)`；分发 Hook 只为已捕获的顶部手势提前进入低阈值移动分支，保留原坐标更新和抬手清理；拖动和惯性调用原候选布局 |
 | 九键拼音删除 | 在内核线程的删键入口读取最新选择状态，通过原版 `actInputCursor`、`actInputPop` 撤销最后一个已选拼音；全部撤销后沿用原版字符删除 |
-| 已选拼音颜色 | 在普通及内嵌拼音栏的绘制范围内，把已选拼音改为绿色；保留原画笔透明度，混合文本中的汉字维持原色 |
+| 已选拼音颜色 | 在普通及内嵌拼音栏的绘制范围内，覆盖普通和硬件加速 Canvas 的文字绘制入口，把已选拼音改为绿色；反优化绘制辅助方法，保留原画笔透明度，混合文本中的汉字维持原色 |
 
 迁移依据及旧功能逐项对应见 [方法 Hook 迁移说明](docs/hook-migration.md)。候选栏手势细节见 [候选栏说明](docs/candidate-scroll.md)。
 
