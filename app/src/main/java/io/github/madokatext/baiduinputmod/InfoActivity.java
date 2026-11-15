@@ -30,7 +30,8 @@ public final class InfoActivity extends Activity {
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(padding, padding, padding, padding);
         content.addView(text("百度输入法 Mod 设置", 24));
-        content.addView(text("1.3.4 · Android 15 · LSPosed API 100\n", 14));
+        content.addView(text("1.3.5 · Android 15 · LSPosed API 100\n", 14));
+        content.addView(text("九键拼音：删除键从后往前逐个取消已选拼音，全部取消后再删除字符；已选拼音显示为绿色。", 16));
         candidate = new Switch(this);
         candidate.setText("顶部候选栏跟手滚动"); candidate.setTextSize(18);
         candidate.setPadding(0, padding / 2, 0, padding / 2);

@@ -21,6 +21,7 @@ public final class HookSupport {
     interface Installer { void run() throws Throwable; }
     private static final Map<Member, Rule> RULES = new ConcurrentHashMap<>();
     private static final ThreadLocal<Integer> SCOPE = ThreadLocal.withInitial(() -> 0);
+    private static final ThreadLocal<Invocation> CALL = new ThreadLocal<>();
     private static final Map<Class<?>, Map<String, Field>> FIELDS = new ConcurrentHashMap<>();
     final ParityModule module;
     final ClassLoader loader;
@@ -30,6 +31,12 @@ public final class HookSupport {
     HookSupport(ParityModule module, ClassLoader loader) { this.module = module; this.loader = loader; }
     Class<?> type(String name) throws ClassNotFoundException { return Class.forName(name, false, loader); }
     static boolean in(int mask) { return (SCOPE.get() & mask) != 0; }
+    static Object owner(int mask) {
+        for (Invocation call = CALL.get(); call != null; call = call.parent) {
+            if (call.rule != null && !call.rule.failed && (call.rule.scope & mask) != 0) return call.owner;
+        }
+        return null;
+    }
 
     void group(String name, Installer installer) {
         group = name;
@@ -106,14 +113,19 @@ public final class HookSupport {
     public static final class Invocation {
         final Rule rule;
         final int previous;
-        Invocation(Rule rule) { this.rule = rule; previous = SCOPE.get(); }
+        final Object owner;
+        final Invocation parent;
+        Invocation(Rule rule, Object owner) {
+            this.rule = rule; this.owner = owner; previous = SCOPE.get(); parent = CALL.get();
+        }
     }
     @XposedHooker
     public static final class Router implements XposedInterface.Hooker {
         @BeforeInvocation
         public static Invocation before(XposedInterface.BeforeHookCallback cb) {
             Rule rule = RULES.get(cb.getMember());
-            Invocation invocation = new Invocation(rule);
+            Invocation invocation = new Invocation(rule, cb.getThisObject());
+            CALL.set(invocation);
             if (rule != null && !rule.failed) {
                 SCOPE.set(invocation.previous | rule.scope);
                 try { if (rule.before != null) rule.before.run(cb); }
@@ -130,6 +142,7 @@ public final class HookSupport {
                     try { rule.after.run(cb); } catch (Throwable error) { rule.fail(error); }
                 }
             } finally {
+                if (invocation.parent == null) CALL.remove(); else CALL.set(invocation.parent);
                 if (invocation.previous == 0) SCOPE.remove(); else SCOPE.set(invocation.previous);
             }
         }
