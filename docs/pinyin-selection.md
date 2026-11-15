@@ -18,6 +18,16 @@
 
 移动光标后，本次调用不会再落入字符删除路径；定位或撤销失败时保留输入，并尽可能恢复原光标位置。日志最多输出十六条不含输入内容的撤销记录。
 
+### 1.3.8 修正：撤销后同步更新拼音候选栏
+
+此前 `actInputCursor`、`actInputPop` 和最后的光标复位复用调用方同一个 `IptCoreDutyInfo`。该类的 `setData(long[])` 会直接覆盖 `mFlashFlag`，最后的光标复位可能覆盖撤销产生的 `REFL_LIST`，使输入串已经撤销、拼音候选列表仍停留在原状态。
+
+现在为光标定位、复位创建独立的 `IptCoreDutyInfo`，调用方的对象保留 `actInputPop` 的结果与附带元数据。撤销成功后，在保留原有刷新标记的同时补上运行时解析的 `REFL_SHOW`、`REFL_CAND`、`REFL_LIST`。随后由原版 `DefaultCoreDutyHandler` 从内核读取最终输入串、汉字候选和拼音候选，再通过 `ImeCoreCallback.y(IptListState)` 更新 `ListState2` 并调用 `InputHandler2.F()` 刷新拼音栏；不在模块中单独替换候选数组或重复发起撤销。
+
+有已选拼音时，type-8 准备调用以原版 `ImePad` 的无回调返回方式结束（负结果转为 null duty），避免跳过 native 调用后再次分发上一次操作遗留的回调数据。真正的删除调用仍只撤销一个音节并发布新的状态。
+
+`2253` 依次选择 `ba`、`ke` 后，删除撤销 `ke` 时拼音候选栏应随撤销后的状态更新；再次撤销 `ba` 时继续同步更新，并保持逐个撤销完成后才删除字符的顺序。此路径保留对单音节、多个音节以及最终一个已选拼音的同样处理。新增的 `PinyinSelection 1.3.8` 日志表示已请求三个状态刷新，不代表实机效果已验证。
+
 ## 文字颜色
 
 普通 `InputBarView.l(Canvas, String)` 与内嵌 `QuadraticInputBarView.draw(Canvas)` 的绘制范围内，识别当前拼音栏的画笔及已选文字颜色，并将已选拼音改为 `#00C853`。使用画笔副本保留透明度及文字属性；混合汉字和拼音的绘制按字符范围分开着色，汉字保留原色。

@@ -35,7 +35,7 @@ public final class InfoActivity extends Activity {
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(padding, padding, padding, padding);
         content.addView(text("百度输入法 Mod 设置", 24));
-        content.addView(text("1.3.7 · Android 15 · LSPosed API 100\n", 14));
+        content.addView(text("1.3.8 · Android 15 · LSPosed API 100\n", 14));
         content.addView(text("剪贴板抢救", 20));
         content.addView(text("输入法可以启动，但打开剪贴板会崩溃时，直接从这里移除最新保存或更新的一条内容，无需打开剪贴板。操作会永久删除该内容及其在另一剪贴板列表中的副本；成功后输入法进程会退出以清除旧缓存。", 16));
         rescue = new Button(this); rescue.setText("移除最新一条剪贴板内容"); content.addView(rescue);
@@ -46,7 +46,7 @@ public final class InfoActivity extends Activity {
                         + (clipboardRescue.uncertain() ? "\n\n上次抢救结果未确认，请先检查，避免再次删除下一条记录。" : ""))
                 .setNegativeButton("取消", null)
                 .setPositiveButton("移除一条", (dialog, which) -> clipboardRescue.start()).show());
-        content.addView(text("九键拼音：删除键从后往前逐个取消已选拼音，全部取消后再删除字符；已选拼音显示为绿色。", 16));
+        content.addView(text("九键拼音：删除键从后往前逐个取消已选拼音，撤销时同步更新拼音候选栏，全部取消后再删除字符；已选拼音显示为绿色。", 16));
         candidate = new Switch(this);
         candidate.setText("顶部候选栏跟手滚动"); candidate.setTextSize(18);
         candidate.setPadding(0, padding / 2, 0, padding / 2);

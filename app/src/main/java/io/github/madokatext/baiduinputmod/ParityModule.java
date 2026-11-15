@@ -19,7 +19,7 @@ public final class ParityModule extends XposedModule {
         new ModHooks(hooks).install();
         new CandidateScrollHooks(hooks).install();
         new PinyinSelectionHooks(hooks).install();
-        log("BaiduInputMod 1.3.7 hook registration finished; consult group results; no DEX/class/resource-table replacement");
+        log("BaiduInputMod 1.3.8 hook registration finished; consult group results; no DEX/class/resource-table replacement");
     }
     boolean candidateScrollEnabled() {
         if (preferences == null) return false;

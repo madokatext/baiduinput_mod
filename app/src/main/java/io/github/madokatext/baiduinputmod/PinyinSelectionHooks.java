@@ -24,8 +24,9 @@ final class PinyinSelectionHooks {
     private final HookSupport h;
     private Field keyState, layout, language, inputState, showInfo;
     private Method mode, readShow, listLength, hzLength, cursorOffsets, cursorCount,
-            cursorIndex, autofix, moveCursor, popInput, popBegin, popEnd;
-    private Constructor<?> newShow;
+            cursorIndex, autofix, moveCursor, popInput, popBegin, popEnd, flashFlag, setFlashFlag;
+    private Constructor<?> newShow, newDuty;
+    private long selectionRefresh;
     private Field barState, barPaint, barColor, inlineState, inlinePaint, inlineColor;
     private int traces, colorEntries, colorChanges;
 
@@ -38,6 +39,8 @@ final class PinyinSelectionHooks {
             Class<?> duty = h.type("com.baidu.iptcore.info.IptCoreDutyInfo");
             newShow = show.getDeclaredConstructor();
             newShow.setAccessible(true);
+            newDuty = duty.getDeclaredConstructor();
+            newDuty.setAccessible(true);
             readShow = method(core, "getInputShow", int.class, show, byte[].class, byte[].class);
             cursorOffsets = method(show, "cursorInfo", byte[].class);
             cursorCount = method(show, "cursorInfoLen", int.class);
@@ -47,6 +50,11 @@ final class PinyinSelectionHooks {
             popInput = method(core, "actInputPop", int.class, duty);
             popBegin = method(show, "popBegan", int.class);
             popEnd = method(show, "popEnd", int.class);
+            flashFlag = method(duty, "flashFlag", long.class);
+            setFlashFlag = method(duty, "setFlashFlag", void.class, long.class);
+            selectionRefresh = field(duty, "REFL_SHOW", long.class).getLong(null)
+                    | field(duty, "REFL_CAND", long.class).getLong(null)
+                    | field(duty, "REFL_LIST", long.class).getLong(null);
             // These native calls already run on Baidu's core thread. Read the
             // live core state here so queued taps cannot reuse stale UI state.
             h.add(method(core, "actKeyClick", int.class, int.class, int.class, String.class, duty),
@@ -153,9 +161,11 @@ final class PinyinSelectionHooks {
         if (selected <= 0) return;
         int type = (Integer) args[typeIndex];
         // A normal soft-key delete sends a preparatory type-8 call followed by
-        // the actual delete. Only the latter may undo a syllable.
-        if (type == DELETE_PREPARE) { cb.returnAndSkip(0); return; }
-        cb.returnAndSkip(0);
+        // the actual delete. A negative native result makes ImePad discard this
+        // no-op duty, instead of redispatching the previous action's stale data.
+        // Only the actual delete may undo a syllable and publish a new duty.
+        if (type == DELETE_PREPARE) { cb.returnAndSkip(-1); return; }
+        cb.returnAndSkip(-1);
         byte[] offsets = (byte[]) cursorOffsets.invoke(show);
         int count = (Integer) cursorCount.invoke(show);
         if (offsets == null || count <= 0 || count > offsets.length) return;
@@ -168,10 +178,11 @@ final class PinyinSelectionHooks {
         }
         if (cursor < 0) return;
         Object duty = args[args.length - 1];
+        Object cursorDuty = newDuty.newInstance();
         int previousCursor = (Integer) cursorIndex.invoke(show);
         // Once a cursor has moved, never fall through to character deletion if
         // an incompatible call throws. The user's input must stay intact.
-        int result = (Integer) moveCursor.invoke(core, cursor, duty);
+        int result = (Integer) moveCursor.invoke(core, cursor, cursorDuty);
         if (result < 0) { cb.returnAndSkip(result); return; }
         Object located = read(core);
         int chinese = (Integer) hzLength.invoke(show);
@@ -188,15 +199,21 @@ final class PinyinSelectionHooks {
             cb.returnAndSkip(restored);
             return;
         }
+        // Each native action overwrites its duty's flags and metadata. Keep
+        // actInputPop's result in the caller's duty and use a separate object
+        // for cursor positioning, otherwise restoring the caret can erase the
+        // REFL_LIST request and leave the pinyin list showing the old syllable.
+        setFlashFlag.invoke(duty, (Long) flashFlag.invoke(duty) | selectionRefresh);
+        cb.returnAndSkip(result);
         Object remaining = read(core);
         if (remaining != null) {
             int end = (Integer) cursorCount.invoke(remaining) - 1;
             // Leave the caret at the end of the unchanged input, ready for the
             // first character deletion after every selection has been undone.
-            if (end >= 0) moveCursor.invoke(core, end, duty);
+            if (end >= 0) moveCursor.invoke(core, end, cursorDuty);
         }
-        cb.returnAndSkip(result);
-        if (traces++ < 16) h.module.log("PinyinSelection 1.3.5: undid last selected syllable; kept input characters");
+        if (traces++ < 16) h.module.log("PinyinSelection 1.3.8: undid last selected syllable; "
+                + "kept input characters; queued input, word-candidate and pinyin-list refresh");
     }
 
     private void beforeDrawText(XposedInterface.BeforeHookCallback cb) throws Exception {
