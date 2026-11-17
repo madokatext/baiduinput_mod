@@ -40,6 +40,7 @@ android {
 dependencies {
     compileOnly project(':xposed-api')
     implementation project(':xposed-service')
-    implementation 'com.bytedance.android:shadowhook:2.0.1'
+    // 2.0.1 requires compileSdk 37 in its AAR metadata; keep the SDK 35 toolchain.
+    implementation 'com.bytedance.android:shadowhook:1.1.1'
     compileOnly 'androidx.annotation:annotation:1.9.1'
 }

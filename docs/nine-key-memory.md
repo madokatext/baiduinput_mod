@@ -42,7 +42,9 @@
 
 ## 构建和依赖
 
-使用固定版 [ShadowHook 2.0.1](https://github.com/bytedance/android-inline-hook/releases/tag/v2.0.1) 的函数地址 Hook，三个函数显式使用 unique 模式。集成方式依据 [上游手册](https://github.com/bytedance/android-inline-hook/blob/v2.0.1/doc/manual.md)。上游 native 库通过 Maven Central/Prefab 获取，不在仓库中携带百度原库或用户词库。
+使用固定版 [ShadowHook 1.1.1](https://github.com/bytedance/android-inline-hook/releases/tag/v1.1.1) 的 `shadowhook_hook_func_addr` 函数地址 Hook，初始化后确认当前是 unique 模式，再安装三个评分 Hook。如果其他 SDK 已先初始化为 shared 模式，则禁用本功能，避免把 shared 模式的代理按 unique 模式直接调用。集成方式依据 [上游手册](https://github.com/bytedance/android-inline-hook/blob/v1.1.1/doc/manual.md)。上游 native 库通过 Maven Central/Prefab 获取，不在仓库中携带百度原库或用户词库。
+
+首次构建的 2.0.1 AAR 元数据要求 `minCompileSdk=37`，与项目 SDK 35 不兼容，导致 `checkReleaseAarMetadata` 失败。修复固定为 1.1.1，其 AAR 元数据、Prefab 头文件和两个 ARM64 库已经只读核对：不要求 SDK 37，使用的函数地址 Hook API 存在，两库 ELF `PT_LOAD` 对齐均为 16384。保持 SDK 35、AGP 8.7.3、Gradle 8.9 和目标 Android 15 不变，不忽略依赖检查。
 
 LSPosed 模块 ClassLoader 使用 `APK!/lib/<ABI>` 作为 native 搜索路径，因此 APK 使用未压缩 native 库并通过 `System.loadLibrary` 加载。保留 ShadowHook 的两个依赖库，供其初始化时加载辅助库。JNI 使用 NDK 27.2.12479018、CMake 3.22.1 和 16 KiB 页对齐。
 

@@ -14,7 +14,7 @@
 
 ## ShadowHook
 
-用户词评分 JNI Hook 通过 Maven Central 依赖 `com.bytedance.android:shadowhook:2.0.1`，使用其 Prefab 头文件及 ARM64 运行库。上游为 [ByteDance/android-inline-hook v2.0.1](https://github.com/bytedance/android-inline-hook/tree/v2.0.1)，遵循 [MIT License](https://github.com/bytedance/android-inline-hook/blob/v2.0.1/LICENSE)。发行包保留在 `app/src/main/assets/third-party/shadowhook-LICENSE` 中的完整许可；未修改上游实现。
+用户词评分 JNI Hook 通过 Maven Central 依赖 `com.bytedance.android:shadowhook:1.1.1`，使用其 Prefab 头文件及 ARM64 运行库。上游为 [ByteDance/android-inline-hook v1.1.1](https://github.com/bytedance/android-inline-hook/tree/v1.1.1)，遵循 [MIT License](https://github.com/bytedance/android-inline-hook/blob/v1.1.1/LICENSE)。发行包保留在 `app/src/main/assets/third-party/shadowhook-LICENSE` 中的完整许可；未修改上游实现。
 
 ## 构建工具
 

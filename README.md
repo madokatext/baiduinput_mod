@@ -2,7 +2,7 @@
 
 **1.4.0 新增“取消九键用户词的时间扣分”独立开关，默认关闭。** 开启后仅在九键拼音的当前内核调用中，将三条用户词评分路径的词龄按零计算；词频学习、频次折半和旧词淘汰仍执行原规则。保留已选拼音逐个撤销及候选刷新、绿色拼音、剪贴板抢救、可调候选栏起滑阈值、跟手滚动和惯性。面向 Android 15（SDK 35）、LSPosed modern API 100，作用域为 `com.baidu.input`；新增 native 功能仅适配已核对的 ARM64 内核。
 
-所有功能都不再使用整类替换：已删除 20 个 smali 覆盖类、DEX 前置加载器、资源表覆盖器和 smali 汇编任务。模块不会改动应用 ClassLoader、`dexElements`、安装 APK 或应用签名。构建编译模块、API 100 设置通信源码和 JNI 评分 Hook，使用固定版本 ShadowHook 2.0.1。
+所有功能都不再使用整类替换：已删除 20 个 smali 覆盖类、DEX 前置加载器、资源表覆盖器和 smali 汇编任务。模块不会改动应用 ClassLoader、`dexElements`、安装 APK 或应用签名。构建编译模块、API 100 设置通信源码和 JNI 评分 Hook，使用与 SDK 35 构建配置兼容的固定版本 ShadowHook 1.1.1。
 
 九键拼音输入 `2253`，依次选择 `ba`、`ke` 后，第一次删除撤销 `ke`，第二次撤销 `ba`；两次都保留输入字符，之后再按删除才进入原版字符删除逻辑。适用于一个或多个已选拼音，按选择顺序的逆序撤销。已选拼音显示为绿色 `#00C853`，未选拼音和汉字保留原有颜色。此行为默认启用，独立于顶部候选栏滚动开关。实现及适配依据见 [拼音选择说明](docs/pinyin-selection.md)。
 
@@ -67,7 +67,7 @@ gradle --no-daemon --console=plain :app:assembleRelease
 
 API 接口以 `compileOnly` 依赖引用。API 100 的官方设置服务 Java / AIDL 源码固定在 `xposed-service` 中，避免依赖 Maven Central 当前仅发布的 101 / 102 版本。来源与许可见 [第三方材料](THIRD_PARTY_NOTICES.md)。
 
-按用户要求，本次不运行测试、本地 Gradle 或设备验证，推送后只确认工作流启动，不等待构建结束。
+按用户要求，不运行测试、本地 Gradle 或设备验证；APK 编译由远端 Actions 执行。修复构建失败时会核对对应日志，并跟踪修复提交的远端构建结果。
 
 ## 历史材料
 

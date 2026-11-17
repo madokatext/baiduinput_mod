@@ -114,13 +114,17 @@ Java_io_github_madokatext_baiduinputmod_NineKeyMemoryHooks_nativeInstall(JNIEnv 
     if (shadowhook_init(SHADOWHOOK_MODE_UNIQUE, false) != 0) {
         return error(env, "Cannot initialize native scoring hook library");
     }
+    // 1.1.1 uses the process-wide initialization mode. Another SDK may have
+    // initialized it first; a shared-mode trampoline cannot be called directly.
+    if (shadowhook_get_mode() != SHADOWHOOK_MODE_UNIQUE) {
+        return error(env, "Native hook library already uses another mode; keeping original scoring");
+    }
     void *proxies[] = {(void *) residual, (void *) matched, (void *) composition};
     void **originals[] = {&original_residual, &original_matched, &original_composition};
     for (unsigned i = 0; i < 3; i++) {
-        // Use unique mode explicitly even if another SDK initialized ShadowHook
-        // with a different default. Function addresses are hidden/stripped.
-        stubs[i] = shadowhook_hook_func_addr_2((void *) (image.base + offsets[i]),
-                proxies[i], originals[i], SHADOWHOOK_HOOK_WITH_UNIQUE_MODE);
+        // Hidden/stripped functions use the address API available in 1.1.1.
+        stubs[i] = shadowhook_hook_func_addr((void *) (image.base + offsets[i]),
+                proxies[i], originals[i]);
         if (stubs[i] == NULL) {
             __android_log_print(ANDROID_LOG_ERROR, "BaiduInputMod",
                                 "NineKeyMemory: scoring hook %u failed, errno=%d", i, shadowhook_get_errno());
