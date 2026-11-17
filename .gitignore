@@ -1,4 +1,6 @@
 .gradle/
+.cxx/
+.externalNativeBuild/
 **/build/
 local.properties
 *.jks

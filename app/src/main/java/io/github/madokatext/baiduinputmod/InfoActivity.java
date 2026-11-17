@@ -15,12 +15,13 @@ import android.widget.TextView;
 public final class InfoActivity extends Activity {
     private SettingsApplication settings;
     private ClipboardRescueController clipboardRescue;
-    private Switch candidate;
+    private Switch candidate, memory;
     private SeekBar threshold, strength, duration;
     private Button resetThreshold, resetInertia, rescue;
     private TextView rescueStatus;
     private TextView status, thresholdLabel, strengthLabel, durationLabel;
     private boolean rendering, adjusting, savedEnabled = true;
+    private boolean savedMemory;
     private int savedThreshold = ModuleSettings.DEFAULT_DRAG_THRESHOLD;
     private int savedStrength = ModuleSettings.DEFAULT_STRENGTH, savedDuration = ModuleSettings.DEFAULT_DURATION;
     private final Runnable refresh = this::renderSetting;
@@ -35,7 +36,7 @@ public final class InfoActivity extends Activity {
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(padding, padding, padding, padding);
         content.addView(text("百度输入法 Mod 设置", 24));
-        content.addView(text("1.3.8 · Android 15 · LSPosed API 100\n", 14));
+        content.addView(text("1.4.0 · Android 15 · LSPosed API 100\n", 14));
         content.addView(text("剪贴板抢救", 20));
         content.addView(text("输入法可以启动，但打开剪贴板会崩溃时，直接从这里移除最新保存或更新的一条内容，无需打开剪贴板。操作会永久删除该内容及其在另一剪贴板列表中的副本；成功后输入法进程会退出以清除旧缓存。", 16));
         rescue = new Button(this); rescue.setText("移除最新一条剪贴板内容"); content.addView(rescue);
@@ -47,6 +48,11 @@ public final class InfoActivity extends Activity {
                 .setNegativeButton("取消", null)
                 .setPositiveButton("移除一条", (dialog, which) -> clipboardRescue.start()).show());
         content.addView(text("九键拼音：删除键从后往前逐个取消已选拼音，撤销时同步更新拼音候选栏，全部取消后再删除字符；已选拼音显示为绿色。", 16));
+        memory = new Switch(this);
+        memory.setText("取消九键用户词的时间扣分"); memory.setTextSize(18);
+        memory.setPadding(0, padding / 2, 0, padding / 2);
+        content.addView(memory);
+        content.addView(text("默认关闭。开启后，九键拼音的用户词学习分不再因闲置时间下降；原有词频学习、频次折半和旧词淘汰仍照常进行。关闭后恢复原有时间评分，不保证固定候选名次。仅适配百度输入法 13.3.6.52（1149）的 ARM64 内核，版本不匹配时保留原行为。修改从下一次输入或候选刷新生效。", 16));
         candidate = new Switch(this);
         candidate.setText("顶部候选栏跟手滚动"); candidate.setTextSize(18);
         candidate.setPadding(0, padding / 2, 0, padding / 2);
@@ -74,6 +80,9 @@ public final class InfoActivity extends Activity {
         content.addView(text("使用说明\n\n1. 在 LSPosed 中启用本模块，作用域勾选百度输入法。\n2. 首次安装或更新模块后，强行停止百度输入法再打开，或重启设备。\n3. 滑块松手后自动保存，开关、起始阈值和惯性参数从下一次候选栏触摸开始生效。关闭开关也会停止正在进行的惯性滑行。\n\n其他功能\n\n剪贴板容量、文本长度和常用语编辑上限调整为 100000000；保留编辑菜单顺序、标签布局和颜色透明度调整。\n\n各功能的加载结果可在 LSPosed 日志中查看。", 16));
         ScrollView scroll = new ScrollView(this); scroll.addView(content); setContentView(scroll);
         candidate.setOnCheckedChangeListener((button, checked) -> {
+            if (!rendering) saveSettings();
+        });
+        memory.setOnCheckedChangeListener((button, checked) -> {
             if (!rendering) saveSettings();
         });
         SeekBar.OnSeekBarChangeListener slider = new SeekBar.OnSeekBarChangeListener() {
@@ -117,14 +126,16 @@ public final class InfoActivity extends Activity {
         try {
             if (prefs != null) {
                 boolean enabled = prefs.getBoolean(ModuleSettings.CANDIDATE_SCROLL, true);
+                boolean noDecay = prefs.getBoolean(ModuleSettings.NO_USER_WORD_TIME_DECAY, false);
                 int distance = ModuleSettings.dragThreshold(prefs.getInt(ModuleSettings.DRAG_THRESHOLD, ModuleSettings.DEFAULT_DRAG_THRESHOLD));
                 int power = ModuleSettings.strength(prefs.getInt(ModuleSettings.INERTIA_STRENGTH, ModuleSettings.DEFAULT_STRENGTH));
                 int time = ModuleSettings.duration(prefs.getInt(ModuleSettings.INERTIA_DURATION, ModuleSettings.DEFAULT_DURATION));
                 savedEnabled = enabled; savedThreshold = distance; savedStrength = power; savedDuration = time;
+                savedMemory = noDecay;
             }
             restoreControls();
             status.setText(prefs == null ? "尚未连接 LSPosed。启用本模块后，重新打开此页面即可设置。"
-                    : "设置已连接 LSPosed，修改后从下次触摸开始生效。");
+                    : "设置已连接 LSPosed。词频记忆开关从下次输入或候选刷新生效，滚动参数从下次触摸生效。");
         } catch (RuntimeException error) {
             settings.invalidateConnection(); restoreControls();
             status.setText("读取设置失败，请重新打开此页面。");
@@ -145,6 +156,7 @@ public final class InfoActivity extends Activity {
     private void updateEnabled() {
         boolean connected = settings.preferences() != null;
         candidate.setEnabled(connected);
+        memory.setEnabled(connected);
         threshold.setEnabled(connected && candidate.isChecked());
         resetThreshold.setEnabled(connected && candidate.isChecked());
         strength.setEnabled(connected && candidate.isChecked());
@@ -155,6 +167,7 @@ public final class InfoActivity extends Activity {
         rendering = true;
         try {
             candidate.setChecked(savedEnabled); threshold.setProgress(savedThreshold);
+            memory.setChecked(savedMemory);
             strength.setProgress(savedStrength);
             duration.setProgress((savedDuration - ModuleSettings.MIN_DURATION) / 50);
             updateLabels(); updateEnabled();
@@ -165,15 +178,19 @@ public final class InfoActivity extends Activity {
         SharedPreferences prefs = settings.preferences();
         try {
             boolean enabled = candidate.isChecked();
+            boolean noDecay = memory.isChecked();
             int distance = threshold.getProgress(), power = strength.getProgress(), time = durationValue();
             if (prefs == null || !prefs.edit().putBoolean(ModuleSettings.CANDIDATE_SCROLL, enabled)
+                    .putBoolean(ModuleSettings.NO_USER_WORD_TIME_DECAY, noDecay)
                     .putInt(ModuleSettings.DRAG_THRESHOLD, distance)
                     .putInt(ModuleSettings.INERTIA_STRENGTH, power).putInt(ModuleSettings.INERTIA_DURATION, time).commit()) {
                 throw new IllegalStateException("LSPosed settings unavailable");
             }
             savedEnabled = enabled; savedThreshold = distance; savedStrength = power; savedDuration = time;
+            savedMemory = noDecay;
             updateEnabled();
-            status.setText(enabled ? "已保存，下次触摸生效。" : "已关闭，下次触摸使用输入法原有行为。");
+            status.setText("已保存。九键用户词时间扣分：" + (noDecay ? "取消" : "原版行为")
+                    + "，下次输入或候选刷新生效。顶部候选栏跟手滚动：" + (enabled ? "开启" : "关闭") + "。");
         } catch (RuntimeException error) {
             settings.invalidateConnection(); restoreControls();
             status.setText("保存失败，已恢复上次设置。请确认 LSPosed 已启用本模块，强行停止本模块后重新打开设置。");

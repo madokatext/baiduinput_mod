@@ -19,7 +19,16 @@ public final class ParityModule extends XposedModule {
         new ModHooks(hooks).install();
         new CandidateScrollHooks(hooks).install();
         new PinyinSelectionHooks(hooks).install();
-        log("BaiduInputMod 1.3.8 hook registration finished; consult group results; no DEX/class/resource-table replacement");
+        new NineKeyMemoryHooks(hooks, param.getApplicationInfo()).install();
+        log("BaiduInputMod 1.4.0 hook registration finished; consult group results; no DEX/class/resource-table replacement");
+    }
+    boolean userWordTimeDecayDisabled() {
+        if (preferences == null) return false;
+        try { return preferences.getBoolean(ModuleSettings.NO_USER_WORD_TIME_DECAY, false); }
+        catch (RuntimeException error) {
+            if (!preferenceError) { preferenceError = true; log("Cannot read user-word time setting; keeping original scoring", error); }
+            return false;
+        }
     }
     boolean candidateScrollEnabled() {
         if (preferences == null) return false;

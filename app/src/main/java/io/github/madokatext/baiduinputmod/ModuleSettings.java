@@ -3,6 +3,7 @@ package io.github.madokatext.baiduinputmod;
 final class ModuleSettings {
     static final String GROUP = "settings";
     static final String CANDIDATE_SCROLL = "nine_key_top_candidate_direct_scroll";
+    static final String NO_USER_WORD_TIME_DECAY = "nine_key_no_user_word_time_decay";
     static final String DRAG_THRESHOLD = "candidate_drag_threshold_percent";
     static final String INERTIA_STRENGTH = "candidate_inertia_strength_percent";
     static final String INERTIA_DURATION = "candidate_inertia_duration_ms";

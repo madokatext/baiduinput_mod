@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.22.1)
+project(ninekeymemory C)
+find_package(shadowhook REQUIRED CONFIG)
+add_library(ninekeymemory SHARED nine_key_memory.c)
+target_compile_features(ninekeymemory PRIVATE c_std_11)
+target_compile_options(ninekeymemory PRIVATE -Wall -Wextra -Werror -fvisibility=hidden)
+target_link_options(ninekeymemory PRIVATE -Wl,-z,max-page-size=16384)
+target_link_libraries(ninekeymemory shadowhook::shadowhook dl log)

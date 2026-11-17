@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="module_description">Android 15 / LSPosed API 100：支持从模块界面抢救剪贴板，并通过方法 Hook 调整剪贴板、常用语、界面与九键候选栏。</string>
+    <string name="module_description">Android 15 / LSPosed API 100：支持取消九键用户词时间扣分、剪贴板抢救及剪贴板、常用语、界面与九键候选栏调整。</string>
 </resources>

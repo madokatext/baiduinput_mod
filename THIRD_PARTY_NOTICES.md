@@ -12,6 +12,10 @@
 
 方法 Hook 的功能依据是用户提供的 origin/mod smali 与资源对照材料。1.2.0 已删除原百度类源码覆盖、DEX 及二进制资源补丁；历史指纹和四条资源文案差异保存在 docs 中供追溯。原应用与第三方 SDK 权利归各自权利人所有。
 
+## ShadowHook
+
+用户词评分 JNI Hook 通过 Maven Central 依赖 `com.bytedance.android:shadowhook:2.0.1`，使用其 Prefab 头文件及 ARM64 运行库。上游为 [ByteDance/android-inline-hook v2.0.1](https://github.com/bytedance/android-inline-hook/tree/v2.0.1)，遵循 [MIT License](https://github.com/bytedance/android-inline-hook/blob/v2.0.1/LICENSE)。发行包保留在 `app/src/main/assets/third-party/shadowhook-LICENSE` 中的完整许可；未修改上游实现。
+
 ## 构建工具
 
 Android Gradle Plugin、Gradle 和 Android SDK 在构建时从相应上游分发源获取，遵循各自许可。1.2.0 不再依赖 smali 汇编器。

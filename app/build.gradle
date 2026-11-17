@@ -5,13 +5,25 @@ plugins {
 android {
     namespace 'io.github.madokatext.baiduinputmod'
     compileSdk 35
+    ndkVersion '27.2.12479018'
     defaultConfig {
         applicationId 'io.github.madokatext.baiduinputmod'
         minSdk 35
         targetSdk 35
-        versionCode 18
-        versionName '1.3.8'
+        versionCode 19
+        versionName '1.4.0'
+        ndk { abiFilters 'arm64-v8a' }
+        externalNativeBuild {
+            cmake { arguments '-DANDROID_STL=none' }
+        }
     }
+    buildFeatures { prefab true }
+    externalNativeBuild {
+        cmake { path file('src/main/cpp/CMakeLists.txt'); version '3.22.1' }
+    }
+    // LSPosed's module classloader searches APK!/lib/<ABI>; keep libraries
+    // uncompressed so its native namespace can also resolve ShadowHook's helper.
+    packaging { jniLibs { useLegacyPackaging false } }
     buildTypes {
         release {
             minifyEnabled false
@@ -28,5 +40,6 @@ android {
 dependencies {
     compileOnly project(':xposed-api')
     implementation project(':xposed-service')
+    implementation 'com.bytedance.android:shadowhook:2.0.1'
     compileOnly 'androidx.annotation:annotation:1.9.1'
 }
